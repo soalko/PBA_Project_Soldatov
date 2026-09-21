@@ -1,6 +1,6 @@
 from datetime import date
 
-from programs import find_program_by_id
+from models.programs import find_program_by_id
 
 
 def is_venue_available(

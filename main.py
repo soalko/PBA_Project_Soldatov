@@ -1,6 +1,10 @@
 import storage
-from models import venues as venues_module, tickets as tickets_module, artists as artists_module, \
+from models import (
+    venues as venues_module,
+    tickets as tickets_module,
+    artists as artists_module,
     programs as programs_module
+)
 from utils import input_date, input_float, input_int, input_non_empty
 
 ARTISTS_FILE = "data/artists.json"
