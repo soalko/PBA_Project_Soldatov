@@ -1,9 +1,7 @@
-"""Тесты функций модуля tickets."""
-
 from datetime import date
 
-from programs import add_program
-from tickets import (
+from models.programs import add_program
+from models.tickets import (
     calculate_ticket_price,
     create_ticket,
     get_booking_status,

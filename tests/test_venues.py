@@ -1,6 +1,4 @@
-"""Тесты функций модуля venues."""
-
-from venues import (
+from models.venues import (
     add_venue,
     check_venue_capacity,
     filter_venues_by_capacity,

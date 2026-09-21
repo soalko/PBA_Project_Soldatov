@@ -1,8 +1,6 @@
-"""Тесты функций модуля programs."""
-
 from datetime import date, timedelta
 
-from programs import (
+from models.programs import (
     add_program,
     check_program_creation,
     filter_programs_by_genre,
