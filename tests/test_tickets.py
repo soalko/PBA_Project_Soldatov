@@ -1,32 +1,86 @@
 from datetime import date
 
-from models.programs import add_program
+from models import Artist, Program, Ticket, Venue
 from models.tickets import (
     calculate_ticket_price,
+    cancel_ticket,
     create_ticket,
     get_booking_status,
     is_venue_available,
 )
 
 
-def _make_programs():
-    """Создать список программ с одной записью для тестов."""
-    programs = []
-    add_program(
-        programs, "Симфония осени", 1, 1,
-        "классика", date(2026, 11, 20), 2500.0
+def _make_program() -> Program:
+    artist = Artist(1, "Оркестр", "Россия", "классика")
+    venue = Venue(1, "Октябрьский", "СПб", 1500)
+    return Program(
+        1, "Симфония осени", artist, venue,
+        "классика", "2026-11-20", 2500.0,
     )
-    return programs
+
+
+def test_ticket_creation_and_links():
+    program = _make_program()
+    ticket = Ticket(1, program, "A12", "партер", 2125.0)
+    assert ticket.id == 1
+    assert ticket.program is program
+    assert ticket.seat == "A12"
+    assert ticket.is_active()
+
+
+def test_ticket_cancel_changes_state():
+    program = _make_program()
+    ticket = Ticket(1, program, "A12", "партер", 2125.0)
+    ticket.cancel()
+    assert ticket.status == "cancelled"
+    assert not ticket.is_active()
+
+
+def test_ticket_str_contains_data():
+    program = _make_program()
+    ticket = Ticket(1, program, "A12", "партер", 2125.0)
+    text = str(ticket)
+    assert "Симфония осени" in text
+    assert "A12" in text
+
+
+def test_ticket_from_data():
+    program = _make_program()
+    data = {
+        "id": 1,
+        "program_id": 1,
+        "seat": "A12",
+        "category": "партер",
+        "price": 2125.0,
+        "status": "sold",
+    }
+    ticket = Ticket.from_data(data, [program])
+    assert ticket is not None
+    assert ticket.program is program
+    assert ticket.is_active()
+
+
+def test_ticket_from_data_unknown_program():
+    data = {
+        "id": 1,
+        "program_id": 99,
+        "seat": "A12",
+        "category": "партер",
+        "price": 2125.0,
+        "status": "sold",
+    }
+    assert Ticket.from_data(data, []) is None
 
 
 def test_is_venue_available_empty():
-    programs = []
-    assert is_venue_available(programs, 1, date(2026, 11, 20))
+    assert is_venue_available([], 1, date(2026, 11, 20))
 
 
 def test_is_venue_available_busy():
-    programs = _make_programs()
-    assert not is_venue_available(programs, 1, date(2026, 11, 20))
+    program = _make_program()
+    assert not is_venue_available(
+        [program], 1, date(2026, 11, 20),
+    )
 
 
 def test_get_booking_status_available():
@@ -48,21 +102,20 @@ def test_calculate_ticket_price_student():
 
 
 def test_create_ticket():
-    programs = _make_programs()
+    program = _make_program()
     tickets = []
     ticket = create_ticket(
-        tickets, programs, 1, "A12", "партер", "AUTUMN15"
+        tickets, program, "A12", "партер", "AUTUMN15",
     )
-    assert ticket is not None
     assert len(tickets) == 1
-    assert ticket["price"] == 2125.0
+    assert ticket.price == 2125.0
 
 
-def test_create_ticket_unknown_program():
-    programs = _make_programs()
+def test_cancel_ticket_changes_state():
+    program = _make_program()
     tickets = []
-    ticket = create_ticket(
-        tickets, programs, 999, "A12", "партер"
-    )
-    assert ticket is None
-    assert len(tickets) == 0
+    ticket = create_ticket(tickets, program, "A12", "партер")
+    assert cancel_ticket(tickets, ticket.id)
+    assert ticket.status == "cancelled"
+    # билет остаётся в коллекции
+    assert len(tickets) == 1

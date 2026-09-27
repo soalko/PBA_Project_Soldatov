@@ -1,11 +1,36 @@
 import storage
-from models import (
-    venues as venues_module,
-    tickets as tickets_module,
-    artists as artists_module,
-    programs as programs_module
+
+from models import Artist, Program, Ticket, Venue
+
+from models.artists import (
+    add_artist,
+    find_artist_by_id,
+    show_artists,
 )
-from utils import input_date, input_float, input_int, input_non_empty
+from models.programs import (
+    add_program,
+    find_program_by_id,
+    find_programs,
+    show_programs,
+)
+from models.tickets import (
+    cancel_ticket,
+    create_ticket,
+    get_booking_status,
+    is_venue_available,
+    show_tickets,
+)
+from models.venues import (
+    add_venue,
+    find_venue_by_id,
+    show_venues,
+)
+from utils import (
+    input_date,
+    input_float,
+    input_int,
+    input_non_empty,
+)
 
 ARTISTS_FILE = "data/artists.json"
 VENUES_FILE = "data/venues.json"
@@ -13,197 +38,125 @@ PROGRAMS_FILE = "data/programs.json"
 TICKETS_FILE = "data/tickets.json"
 
 
-def show_artists(artists: list[dict]) -> None:
-    """Вывести список исполнителей."""
-    if not artists:
-        print("Список исполнителей пуст.")
-        return
-    print("--- Исполнители ---")
-    for artist in artists:
-        print(
-            f"[{artist['id']}] {artist['name']} — "
-            f"{artist['genre']}, {artist['country']}"
-        )
-
-
-def show_venues(venues: list[dict]) -> None:
-    """Вывести список площадок."""
-    if not venues:
-        print("Список площадок пуст.")
-        return
-    print("--- Площадки ---")
-    for venue in venues:
-        print(
-            f"[{venue['id']}] {venue['name']}, "
-            f"{venue['address']}, до {venue['capacity']} чел."
-        )
-
-
-def show_programs(
-        programs: list[dict],
-        artists: list[dict],
-        venues: list[dict]
-) -> None:
-    """Вывести список концертных программ."""
-    if not programs:
-        print("Список программ пуст.")
-        return
-    print("--- Концертные программы ---")
-    for program in programs:
-        artist = artists_module.find_artist_by_id(
-            artists, program["artist_id"]
-        )
-        venue = venues_module.find_venue_by_id(
-            venues, program["venue_id"]
-        )
-        artist_name = artist["name"] if artist else "неизвестен"
-        venue_name = venue["name"] if venue else "неизвестна"
-        print(
-            f"[{program['id']}] «{program['title']}» "
-            f"({program['genre']}) — {artist_name}, "
-            f"{venue_name}, {program['event_date']}, "
-            f"базовая цена {program['base_price']} руб."
-        )
-
-
-def show_tickets(
-        tickets: list[dict],
-        programs: list[dict]
-) -> None:
-    """Вывести список проданных билетов."""
-    if not tickets:
-        print("Проданных билетов нет.")
-        return
-    print("--- Билеты ---")
-    for ticket in tickets:
-        program = programs_module.find_program_by_id(
-            programs, ticket["program_id"]
-        )
-        title = program["title"] if program else "неизвестна"
-        print(
-            f"[{ticket['id']}] программа «{title}», "
-            f"место {ticket['seat']} ({ticket['category']}), "
-            f"{ticket['price']} руб."
-        )
-
-
-def menu_add_artist(artists: list[dict]) -> None:
+def menu_add_artist(artists: list[Artist]) -> None:
     """Диалог добавления исполнителя."""
     name = input_non_empty("Имя исполнителя: ")
     country = input_non_empty("Страна: ")
     genre = input_non_empty("Жанр: ")
-    artist = artists_module.add_artist(artists, name, country, genre)
-    print(f"Исполнитель добавлен с id={artist['id']}")
+    artist = add_artist(artists, name, country, genre)
+    print(f"Исполнитель добавлен с id={artist.id}")
 
 
-def menu_add_venue(venues: list[dict]) -> None:
+def menu_add_venue(venues: list[Venue]) -> None:
     """Диалог добавления площадки."""
     name = input_non_empty("Название площадки: ")
     address = input_non_empty("Адрес: ")
     capacity = input_int("Вместимость: ")
-    venue = venues_module.add_venue(venues, name, address, capacity)
-    print(f"Площадка добавлена с id={venue['id']}")
+    if not Venue.validate_capacity(capacity):
+        print("Ошибка: вместимость должна быть положительной")
+        return
+    venue = add_venue(venues, name, address, capacity)
+    print(f"Площадка добавлена с id={venue.id}")
 
 
 def menu_add_program(
-        programs: list[dict],
-        artists: list[dict],
-        venues: list[dict]
+        programs: list[Program],
+        artists: list[Artist],
+        venues: list[Venue],
 ) -> None:
     """Диалог создания концертной программы."""
     title = input_non_empty("Название программы: ")
     show_artists(artists)
     artist_id = input_int("id исполнителя: ")
+    artist = find_artist_by_id(artists, artist_id)
     show_venues(venues)
     venue_id = input_int("id площадки: ")
+    venue = find_venue_by_id(venues, venue_id)
     genre = input_non_empty("Жанр: ")
     event_date = input_date("Дата (ДД.ММ.ГГГГ): ")
     base_price = input_float("Базовая цена билета: ")
 
-    status = programs_module.check_program_creation(
-        title, artist_id, event_date
-    )
+    status = Program.validate(title, artist, event_date)
     if not status.startswith("Программа"):
         print(status)
         return
-
-    if not tickets_module.is_venue_available(
-            programs, venue_id, event_date
-    ):
-        print(tickets_module.get_booking_status(False))
+    if venue is None:
+        print("Ошибка: площадка не найдена")
+        return
+    if not is_venue_available(programs, venue_id, event_date):
+        print(get_booking_status(False))
         return
 
-    program = programs_module.add_program(
-        programs, title, artist_id, venue_id,
-        genre, event_date, base_price
+    program = add_program(
+        programs, title, artist, venue,
+        genre, event_date, base_price,
     )
-    print(f"Программа добавлена с id={program['id']}")
-    print(tickets_module.get_booking_status(True))
+    print(f"Программа добавлена с id={program.id}")
+    print(get_booking_status(True))
 
 
 def menu_check_venue(
-        programs: list[dict],
-        venues: list[dict]
+        programs: list[Program],
+        venues: list[Venue],
 ) -> None:
     """Диалог проверки доступности площадки на дату."""
     show_venues(venues)
     venue_id = input_int("id площадки: ")
     event_date = input_date("Дата (ДД.ММ.ГГГГ): ")
-    available = tickets_module.is_venue_available(
-        programs, venue_id, event_date
-    )
-    print(tickets_module.get_booking_status(available))
+    available = is_venue_available(programs, venue_id, event_date)
+    print(get_booking_status(available))
 
 
 def menu_sell_ticket(
-        tickets: list[dict],
-        programs: list[dict]
+        tickets: list[Ticket],
+        programs: list[Program],
 ) -> None:
     """Диалог продажи билета."""
     if not programs:
         print("Сначала создайте хотя бы одну программу")
         return
-    print("--- Доступные программы ---")
-    for program in programs:
-        print(f"[{program['id']}] {program['title']}")
+    show_programs(programs)
     program_id = input_int("id программы: ")
+    program = find_program_by_id(programs, program_id)
+    if program is None:
+        print("Программа с указанным id не найдена")
+        return
     seat = input_non_empty("Место (например, A12): ")
     category = input_non_empty("Категория (партер/балкон): ")
     promo = input("Промокод (Enter — без скидки): ").strip()
-    ticket = tickets_module.create_ticket(
-        tickets, programs, program_id, seat, category, promo
+    ticket = create_ticket(
+        tickets, program, seat, category, promo,
     )
-    if ticket is None:
-        print("Программа с указанным id не найдена")
-        return
     print(
-        f"Билет продан: id={ticket['id']}, "
-        f"цена {ticket['price']} руб."
+        f"Билет продан: id={ticket.id}, "
+        f"цена {ticket.price} руб."
     )
 
 
-def menu_cancel_ticket(tickets: list[dict]) -> None:
+def menu_cancel_ticket(tickets: list[Ticket]) -> None:
     """Диалог отмены билета."""
     ticket_id = input_int("id билета для отмены: ")
-    if tickets_module.cancel_ticket(tickets, ticket_id):
+    if cancel_ticket(tickets, ticket_id):
         print("Билет отменён")
     else:
         print("Билет с указанным id не найден")
 
 
-def menu_find_programs(programs: list[dict]) -> None:
+def menu_find_programs(programs: list[Program]) -> None:
     """Диалог поиска программ по названию."""
     query = input_non_empty("Подстрока названия: ")
-    found = programs_module.find_programs(programs, query)
+    found = find_programs(programs, query)
     if not found:
         print("Ничего не найдено")
         return
     for program in found:
-        print(f"[{program['id']}] {program['title']}")
+        print(f"[{program.id}] {program}")
 
 
 def print_menu() -> None:
-    print("\n=== Система управления концертными программами ===")
+    """Вывести главное меню."""
+    print()
+    print("=== Система управления концертными программами ===")
     print("1. Показать исполнителей")
     print("2. Показать площадки")
     print("3. Показать программы")
@@ -222,8 +175,8 @@ def main() -> None:
     """Точка запуска приложения."""
     artists = storage.load_artists(ARTISTS_FILE)
     venues = storage.load_venues(VENUES_FILE)
-    programs = storage.load_programs(PROGRAMS_FILE)
-    tickets = storage.load_tickets(TICKETS_FILE)
+    programs = storage.load_programs(PROGRAMS_FILE, artists, venues)
+    tickets = storage.load_tickets(TICKETS_FILE, programs)
 
     while True:
         print_menu()
@@ -234,9 +187,9 @@ def main() -> None:
         elif choice == "2":
             show_venues(venues)
         elif choice == "3":
-            show_programs(programs, artists, venues)
+            show_programs(programs)
         elif choice == "4":
-            show_tickets(tickets, programs)
+            show_tickets(tickets)
         elif choice == "5":
             menu_add_artist(artists)
         elif choice == "6":
