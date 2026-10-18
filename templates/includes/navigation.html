@@ -1,0 +1,17 @@
+{% load static %}
+<header class="site-header mb-4">
+    <nav class="nav container align-items-center py-2">
+        <a href="{% url 'homepage:index' %}" class="me-3">
+            <img
+                src="{% static 'homepage/img/logo.png' %}"
+                alt="Концертные программы"
+                class="site-logo"
+            >
+        </a>
+        <a class="nav-link" href="{% url 'homepage:index' %}">Главная</a>
+        <a class="nav-link" href="{% url 'artists:list' %}">Исполнители</a>
+        <a class="nav-link" href="{% url 'venues:list' %}">Площадки</a>
+        <a class="nav-link" href="{% url 'programs:list' %}">Программы</a>
+        <a class="nav-link" href="{% url 'tickets:list' %}">Билеты</a>
+    </nav>
+</header>

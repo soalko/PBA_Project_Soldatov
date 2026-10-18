@@ -29,9 +29,14 @@ class Program:
         self.event_date = event_date
         self.base_price = base_price
 
+    @property
+    def event_day(self) -> date:
+        """Дата концерта как объект date (в JSON хранится строка)."""
+        return date.fromisoformat(self.event_date)
+
     def is_upcoming(self) -> bool:
         """Проверить, что дата концерта ещё не наступила."""
-        return date.fromisoformat(self.event_date) > date.today()
+        return self.event_day > date.today()
 
     @staticmethod
     def validate(

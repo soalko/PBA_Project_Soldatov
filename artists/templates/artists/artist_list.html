@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+
+{% block title %}Исполнители – Концертные программы{% endblock %}
+
+{% block content %}
+    <h1>Исполнители</h1>
+
+    <p class="text-muted">Всего исполнителей: {{ artists|length }}</p>
+
+    {% for artist in artists %}
+        {% include "artists/includes/artist_card.html" %}
+    {% empty %}
+        <p class="empty-message">Список исполнителей пуст.</p>
+    {% endfor %}
+{% endblock %}

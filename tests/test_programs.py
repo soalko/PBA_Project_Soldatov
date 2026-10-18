@@ -57,6 +57,16 @@ def test_program_is_upcoming():
     assert program.is_upcoming()
 
 
+def test_program_event_day_is_date():
+    program = Program(
+        1, "Симфония", _make_artist(), _make_venue(),
+        "классика", "2026-11-20", 2500.0,
+    )
+    assert program.event_day == date(2026, 11, 20)
+    # В JSON по-прежнему сохраняется строка.
+    assert program.to_data()["event_date"] == "2026-11-20"
+
+
 def test_program_validate_empty_title():
     result = Program.validate(
         "", _make_artist(), date.today() + timedelta(days=30),

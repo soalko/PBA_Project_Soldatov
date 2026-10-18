@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+
+{% block title %}
+    {% if venue %}
+        {{ venue.name }} – Концертные программы
+    {% else %}
+        Площадка не найдена – Концертные программы
+    {% endif %}
+{% endblock %}
+
+{% block content %}
+    {% if venue %}
+        <div class="card">
+            <div class="card-body">
+                <h1 class="card-title h3">{{ venue.name }}</h1>
+                <p class="card-text">
+                    <strong>ID:</strong> {{ venue.id }}
+                </p>
+                <p class="card-text">
+                    <strong>Адрес:</strong> {{ venue.address }}
+                </p>
+                <p class="card-text">
+                    <strong>Вместимость:</strong> {{ venue.capacity }} мест
+                </p>
+                <p class="card-text">
+                    Доступность на {{ today|date:"d.m.Y" }}:
+                    {% if is_available %}
+                        <span class="badge bg-success">свободна</span>
+                    {% else %}
+                        <span class="badge bg-danger">занята</span>
+                    {% endif %}
+                </p>
+            </div>
+        </div>
+    {% else %}
+        <h1 class="text-danger">Площадка не найдена</h1>
+        <p>Площадка с указанным идентификатором отсутствует.</p>
+    {% endif %}
+
+    <a
+        href="{% url 'venues:list' %}"
+        class="btn btn-outline-secondary mt-3"
+    >
+        ← к списку площадок
+    </a>
+{% endblock %}

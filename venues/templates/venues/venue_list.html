@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+
+{% block title %}Площадки – Концертные программы{% endblock %}
+
+{% block content %}
+    <h1>Площадки</h1>
+
+    <p class="text-muted">Всего площадок: {{ venues|length }}</p>
+
+    {% for venue in venues %}
+        {% include "venues/includes/venue_card.html" %}
+    {% empty %}
+        <p class="empty-message">Список площадок пуст.</p>
+    {% endfor %}
+{% endblock %}

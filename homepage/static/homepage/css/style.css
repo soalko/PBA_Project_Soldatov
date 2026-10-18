@@ -1,0 +1,68 @@
+/* Собственные стили проекта: дополняют оформление Bootstrap. */
+
+body {
+    min-height: 100vh;
+    background-color: #f8f9fa;
+}
+
+h1 {
+    margin-bottom: 1rem;
+}
+
+/* Шапка и навигация */
+.site-header {
+    background-color: #212529;
+}
+
+.site-header .nav-link {
+    color: #ffffff;
+}
+
+.site-header .nav-link:hover,
+.site-header .nav-link.active {
+    color: #ffc107;
+}
+
+.site-logo {
+    width: 40px;
+    height: 40px;
+}
+
+/* Подвал */
+.site-footer {
+    margin-top: 2rem;
+    padding: 1.5rem 0;
+    color: #6c757d;
+    font-size: 0.875rem;
+}
+
+/* Карточки исполнителей и площадок */
+.entity-card {
+    border-left: 4px solid #6f42c1;
+    border-radius: 8px;
+    transition: box-shadow 0.2s;
+}
+
+.entity-card:hover {
+    box-shadow: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.1);
+}
+
+/* Статусы программ и билетов */
+.status-badge {
+    font-weight: 600;
+    letter-spacing: 0.02em;
+}
+
+.ticket-status-cancelled,
+.status-past {
+    text-decoration: line-through;
+}
+
+.genre-badge {
+    color: #212529;
+}
+
+.empty-message {
+    color: #6c757d;
+    font-style: italic;
+}

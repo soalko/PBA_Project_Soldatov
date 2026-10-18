@@ -1,0 +1,9 @@
+{% if program.is_upcoming %}
+    <span class="badge bg-success status-badge status-upcoming">
+        предстоит
+    </span>
+{% else %}
+    <span class="badge bg-secondary status-badge status-past">
+        прошла
+    </span>
+{% endif %}

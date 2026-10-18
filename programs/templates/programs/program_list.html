@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+
+{% block title %}Программы – Концертные программы{% endblock %}
+
+{% block content %}
+    <h1>Концертные программы</h1>
+
+    <p class="text-muted">Всего программ: {{ programs|length }}</p>
+
+    <ul class="list-group">
+        {% for program in programs %}
+            <li class="list-group-item d-flex justify-content-between align-items-center gap-2">
+                <a href="{% url 'programs:detail' program.id %}">
+                    {{ program.title|default:"Без названия" }}
+                    – {{ program.event_day|date:"d.m.Y" }}
+                </a>
+                {% include "programs/includes/program_status.html" %}
+            </li>
+        {% empty %}
+            <li class="list-group-item empty-message">
+                Список программ пуст.
+            </li>
+        {% endfor %}
+    </ul>
+{% endblock %}

@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+
+{% block title %}Главная – Концертные программы{% endblock %}
+
+{% block content %}
+    <h1 class="display-5">Концертные программы</h1>
+
+    <p class="lead">
+        Система управления концертными программами: реестр исполнителей,
+        площадок, программ и проданных билетов.
+    </p>
+
+    <p>Основные разделы:</p>
+    <a href="{% url 'artists:list' %}" class="btn btn-primary me-2 mb-2">
+        Исполнители
+    </a>
+    <a href="{% url 'venues:list' %}" class="btn btn-primary me-2 mb-2">
+        Площадки
+    </a>
+    <a href="{% url 'programs:list' %}" class="btn btn-primary me-2 mb-2">
+        Программы
+    </a>
+    <a href="{% url 'tickets:list' %}" class="btn btn-secondary mb-2">
+        Билеты
+    </a>
+{% endblock %}

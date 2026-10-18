@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block title %}
+    {% if artist %}
+        {{ artist.name }} – Концертные программы
+    {% else %}
+        Исполнитель не найден – Концертные программы
+    {% endif %}
+{% endblock %}
+
+{% block content %}
+    {% if artist %}
+        <div class="card">
+            <div class="card-body">
+                <h1 class="card-title h3">{{ artist.name }}</h1>
+                <p class="card-text">
+                    <strong>ID:</strong> {{ artist.id }}
+                </p>
+                <p class="card-text">
+                    <strong>Страна:</strong> {{ artist.country }}
+                </p>
+                <p class="card-text">
+                    <strong>Жанр:</strong>
+                    <span class="badge bg-info genre-badge">
+                        {{ artist.genre|capfirst }}
+                    </span>
+                </p>
+            </div>
+        </div>
+    {% else %}
+        <h1 class="text-danger">Исполнитель не найден</h1>
+        <p>Исполнитель с указанным идентификатором отсутствует.</p>
+    {% endif %}
+
+    <a
+        href="{% url 'artists:list' %}"
+        class="btn btn-outline-secondary mt-3"
+    >
+        ← к списку исполнителей
+    </a>
+{% endblock %}

@@ -1,0 +1,9 @@
+{% if ticket.is_active %}
+    <span class="badge bg-success status-badge ticket-status-active">
+        активен
+    </span>
+{% else %}
+    <span class="badge bg-secondary status-badge ticket-status-cancelled">
+        отменён
+    </span>
+{% endif %}

@@ -1,4 +1,9 @@
+from datetime import date, timedelta
+
 import pytest
+from django.urls import reverse
+
+import homepage.views
 
 
 @pytest.mark.parametrize(
@@ -21,12 +26,83 @@ def test_page_is_available(client, url, text):
     assert text in response.content.decode()
 
 
+@pytest.mark.parametrize(
+    "url, template",
+    [
+        ("/", "homepage/index.html"),
+        ("/artists/", "artists/artist_list.html"),
+        ("/artists/1/", "artists/artist_detail.html"),
+        ("/venues/", "venues/venue_list.html"),
+        ("/venues/1/", "venues/venue_detail.html"),
+        ("/programs/", "programs/program_list.html"),
+        ("/programs/1/", "programs/program_detail.html"),
+        ("/tickets/", "tickets/ticket_list.html"),
+        ("/tickets/1/", "tickets/ticket_detail.html"),
+    ],
+)
+def test_page_uses_template_inherited_from_base(client, url, template):
+    names = [t.name for t in client.get(url).templates]
+    assert names[0] == template
+    assert "base.html" in names
+    assert "includes/navigation.html" in names
+
+
+@pytest.mark.parametrize(
+    "url, include",
+    [
+        ("/artists/", "artists/includes/artist_card.html"),
+        ("/venues/", "venues/includes/venue_card.html"),
+        ("/programs/", "programs/includes/program_status.html"),
+        ("/programs/1/", "programs/includes/program_status.html"),
+        ("/tickets/", "tickets/includes/ticket_status.html"),
+        ("/tickets/1/", "tickets/includes/ticket_status.html"),
+    ],
+)
+def test_repeated_fragments_are_included(client, url, include):
+    names = [t.name for t in client.get(url).templates]
+    assert include in names
+
+
+def test_context_contains_domain_objects(client):
+    response = client.get("/venues/")
+    assert [venue.id for venue in response.context["venues"]] == [1, 2]
+    response = client.get("/tickets/2/")
+    assert response.context["ticket"].status == "cancelled"
+
+
 def test_pages_share_common_layout(client):
     for url in ("/", "/venues/", "/tickets/1/"):
         html = client.get(url).content.decode()
-        assert html.startswith("<!DOCTYPE html>")
+        assert html.lstrip().startswith("<!DOCTYPE html>")
         assert "bootstrap@5.3.3" in html
         assert 'href="/programs/"' in html
+        assert 'id="current-year"' in html
+
+
+def test_static_files_are_connected(client):
+    html = client.get("/").content.decode()
+    assert 'href="/static/homepage/css/style.css"' in html
+    assert 'src="/static/homepage/js/main.js"' in html
+    assert 'src="/static/homepage/img/logo.png"' in html
+
+
+def test_static_files_exist():
+    from django.contrib.staticfiles import finders
+
+    for path in (
+        "homepage/css/style.css",
+        "homepage/js/main.js",
+        "homepage/img/logo.png",
+    ):
+        assert finders.find(path) is not None
+
+
+def test_named_urls_use_namespaces():
+    assert reverse("homepage:index") == "/"
+    assert reverse("artists:list") == "/artists/"
+    assert reverse("venues:detail", args=[2]) == "/venues/2/"
+    assert reverse("programs:detail", args=[1]) == "/programs/1/"
+    assert reverse("tickets:list") == "/tickets/"
 
 
 def test_index_links_to_sections(client):
@@ -37,7 +113,34 @@ def test_index_links_to_sections(client):
 
 def test_page_title_comes_from_object(client):
     html = client.get("/venues/2/").content.decode()
-    assert "<title>Крокус</title>" in html
+    assert "Крокус – Концертные программы" in html
+
+
+def test_list_shows_count_with_length_filter(client):
+    assert "Всего площадок: 2" in client.get("/venues/").content.decode()
+    assert "Всего билетов: 2" in client.get("/tickets/").content.decode()
+
+
+def test_date_filter_formats_event_date(client):
+    expected = (date.today() + timedelta(days=30)).strftime("%d.%m.%Y")
+    assert expected in client.get("/programs/1/").content.decode()
+
+
+def test_default_filter_for_empty_name(client, tmp_path):
+    (tmp_path / "venues.json").write_text(
+        '[{"id": 1, "name": "", "address": "", "capacity": 10}]',
+        encoding="utf-8",
+    )
+    html = client.get("/venues/").content.decode()
+    assert "Без названия" in html
+    assert "адрес не указан" in html
+
+
+def test_empty_collection_message(client, tmp_path):
+    (tmp_path / "artists.json").write_text("[]", encoding="utf-8")
+    html = client.get("/artists/").content.decode()
+    assert "Список исполнителей пуст." in html
+    assert "Всего исполнителей: 0" in html
 
 
 def test_venue_availability_uses_pr3_logic(client):
@@ -91,3 +194,7 @@ def test_html_special_characters_are_escaped(client, tmp_path):
     html = client.get("/artists/1/").content.decode()
     assert "&lt;b&gt;AC&amp;DC&lt;/b&gt;" in html
     assert "<b>AC&DC</b>" not in html
+
+
+def test_page_function_is_removed():
+    assert not hasattr(homepage.views, "page")

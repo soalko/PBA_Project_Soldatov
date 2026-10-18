@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+
+{% block title %}
+    {% if program %}
+        {{ program.title }} – Концертные программы
+    {% else %}
+        Программа не найдена – Концертные программы
+    {% endif %}
+{% endblock %}
+
+{% block content %}
+    {% if program %}
+        <div class="card">
+            <div class="card-body">
+                <h1 class="card-title h3">{{ program.title }}</h1>
+                <p class="card-text">
+                    <strong>ID:</strong> {{ program.id }}
+                </p>
+                <p class="card-text">
+                    <strong>Исполнитель:</strong>
+                    <a href="{% url 'artists:detail' program.artist.id %}">
+                        {{ program.artist.name }}
+                    </a>
+                </p>
+                <p class="card-text">
+                    <strong>Площадка:</strong>
+                    <a href="{% url 'venues:detail' program.venue.id %}">
+                        {{ program.venue.name }}
+                    </a>
+                </p>
+                <p class="card-text">
+                    <strong>Жанр:</strong> {{ program.genre|capfirst }}
+                </p>
+                <p class="card-text">
+                    <strong>Дата:</strong>
+                    {{ program.event_day|date:"d.m.Y" }}
+                    {% include "programs/includes/program_status.html" %}
+                </p>
+                <p class="card-text">
+                    <strong>Базовая цена:</strong>
+                    {{ program.base_price|floatformat:2 }} руб.
+                </p>
+                <p class="card-text">
+                    <strong>Активных билетов:</strong> {{ sold }}
+                </p>
+            </div>
+        </div>
+    {% else %}
+        <h1 class="text-danger">Программа не найдена</h1>
+        <p>Программа с указанным идентификатором отсутствует.</p>
+    {% endif %}
+
+    <a
+        href="{% url 'programs:list' %}"
+        class="btn btn-outline-secondary mt-3"
+    >
+        ← к списку программ
+    </a>
+{% endblock %}
