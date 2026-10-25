@@ -1,10 +1,4 @@
-from django.conf import settings
 from django.shortcuts import render
-
-
-def data_file(name):
-    """Вернуть путь к JSON-файлу проекта ПР3 из каталога data/."""
-    return str(settings.DATA_DIR / name)
 
 
 def index(request):

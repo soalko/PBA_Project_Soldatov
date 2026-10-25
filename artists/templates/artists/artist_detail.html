@@ -17,7 +17,8 @@
                     <strong>ID:</strong> {{ artist.id }}
                 </p>
                 <p class="card-text">
-                    <strong>Страна:</strong> {{ artist.country }}
+                    <strong>Страна:</strong>
+                    {{ artist.country|default:"не указана" }}
                 </p>
                 <p class="card-text">
                     <strong>Жанр:</strong>
@@ -27,6 +28,22 @@
                 </p>
             </div>
         </div>
+
+        <h2 class="h4 mt-4">Программы исполнителя</h2>
+        <ul class="list-group">
+            {% for program in programs %}
+                <li class="list-group-item">
+                    <a href="{% url 'programs:detail' program.id %}">
+                        {{ program.title }}
+                    </a>
+                    – {{ program.event_day }}, {{ program.venue_name }}
+                </li>
+            {% empty %}
+                <li class="list-group-item empty-message">
+                    У исполнителя пока нет программ.
+                </li>
+            {% endfor %}
+        </ul>
     {% else %}
         <h1 class="text-danger">Исполнитель не найден</h1>
         <p>Исполнитель с указанным идентификатором отсутствует.</p>

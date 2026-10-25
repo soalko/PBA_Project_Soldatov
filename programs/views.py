@@ -1,33 +1,53 @@
 from django.shortcuts import render
 
-from homepage.views import data_file
-from models.programs import find_program_by_id, sort_programs_by_date
-from models.tickets import count_active_tickets_by_program
-from storage import (
-    load_artists,
-    load_programs,
-    load_tickets,
-    load_venues,
-)
+from db.database import fetch_all, fetch_one
 
+# Афиша: программы с исполнителем и площадкой (запрос 8).
+# is_upcoming = 1, если дата программы ещё не наступила —
+# то же правило, что в методе Program.is_upcoming() из ПР3.
+PROGRAM_LIST_SQL = """
+    SELECT programs.id,
+           programs.title,
+           strftime('%d.%m.%Y', programs.event_date) AS event_day,
+           programs.event_date > date('now', 'localtime') AS is_upcoming,
+           artists.name AS artist_name,
+           venues.name AS venue_name
+    FROM programs
+    JOIN artists ON programs.artist_id = artists.id
+    JOIN venues ON programs.venue_id = venues.id
+    ORDER BY programs.event_date
+"""
 
-def load_all_programs():
-    """Загрузить программы со связанными исполнителями и площадками."""
-    artists_list = load_artists(data_file("artists.json"))
-    venues_list = load_venues(data_file("venues.json"))
-    return load_programs(
-        data_file("programs.json"),
-        artists_list,
-        venues_list,
-    )
+PROGRAM_DETAIL_SQL = """
+    SELECT programs.id,
+           programs.title,
+           programs.genre,
+           programs.base_price,
+           strftime('%d.%m.%Y', programs.event_date) AS event_day,
+           programs.event_date > date('now', 'localtime') AS is_upcoming,
+           artists.id AS artist_id,
+           artists.name AS artist_name,
+           venues.id AS venue_id,
+           venues.name AS venue_name
+    FROM programs
+    JOIN artists ON programs.artist_id = artists.id
+    JOIN venues ON programs.venue_id = venues.id
+    WHERE programs.id = ?
+"""
+
+# Количество активных билетов на программу (запрос 14).
+PROGRAM_SOLD_SQL = """
+    SELECT COUNT(*) AS sold
+    FROM tickets
+    WHERE program_id = ?
+      AND status = 'sold'
+"""
 
 
 def programs(request):
     """Страница списка концертных программ, упорядоченных по дате."""
-    programs_list = sort_programs_by_date(load_all_programs())
-
     context = {
-        "programs": programs_list,
+        "programs": fetch_all(PROGRAM_LIST_SQL),
     }
 
     return render(request, "programs/program_list.html", context)
@@ -35,16 +55,11 @@ def programs(request):
 
 def program_detail(request, program_id):
     """Страница программы; для неизвестного id - ответ с кодом 404."""
-    programs_list = load_all_programs()
-    program = find_program_by_id(programs_list, program_id)
+    program = fetch_one(PROGRAM_DETAIL_SQL, [program_id])
 
     sold = 0
     if program is not None:
-        tickets_list = load_tickets(
-            data_file("tickets.json"),
-            programs_list,
-        )
-        sold = count_active_tickets_by_program(tickets_list, program.id)
+        sold = fetch_one(PROGRAM_SOLD_SQL, [program_id])["sold"]
 
     context = {
         "program": program,

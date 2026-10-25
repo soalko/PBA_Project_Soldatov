@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+
+{% block title %}Статистика – Концертные программы{% endblock %}
+
+{% block content %}
+    <h1>Статистика продаж</h1>
+
+    <div class="row g-3 mb-4">
+        <div class="col-sm-6 col-lg-3">
+            <div class="card stat-card h-100">
+                <div class="card-body">
+                    <div class="text-muted small">Активных билетов</div>
+                    <div class="stat-value">{{ sales.tickets_sold }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-lg-3">
+            <div class="card stat-card h-100">
+                <div class="card-body">
+                    <div class="text-muted small">Выручка, руб.</div>
+                    <div class="stat-value">
+                        {{ sales.revenue|default:0|floatformat:2 }}
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-lg-3">
+            <div class="card stat-card h-100">
+                <div class="card-body">
+                    <div class="text-muted small">Средняя цена билета, руб.</div>
+                    <div class="stat-value">
+                        {{ sales.average_price|default:0|floatformat:2 }}
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-lg-3">
+            <div class="card stat-card h-100">
+                <div class="card-body">
+                    <div class="text-muted small">Программ / цены, руб.</div>
+                    <div class="stat-value">{{ prices.programs_count }}</div>
+                    <div class="small">
+                        от {{ prices.min_price|default:0|floatformat:0 }}
+                        до {{ prices.max_price|default:0|floatformat:0 }}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <h2 class="h4">Продажи по программам</h2>
+    <table class="table table-sm table-striped stats-table">
+        <thead>
+            <tr>
+                <th>Программа</th>
+                <th class="text-end">Продано билетов</th>
+                <th class="text-end">Выручка, руб.</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in by_program %}
+                <tr>
+                    <td>{{ row.title }}</td>
+                    <td class="text-end">{{ row.tickets_sold }}</td>
+                    <td class="text-end">{{ row.revenue|floatformat:2 }}</td>
+                </tr>
+            {% empty %}
+                <tr><td colspan="3" class="empty-message">Данные отсутствуют.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="row g-4">
+        <div class="col-lg-6">
+            <h2 class="h4">Программы по площадкам</h2>
+            <table class="table table-sm table-striped stats-table">
+                <thead>
+                    <tr>
+                        <th>Площадка</th>
+                        <th class="text-end">Программ</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in by_venue %}
+                        <tr>
+                            <td>{{ row.name }}</td>
+                            <td class="text-end">{{ row.programs_count }}</td>
+                        </tr>
+                    {% empty %}
+                        <tr><td colspan="2" class="empty-message">Данные отсутствуют.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="col-lg-6">
+            <h2 class="h4">Программы по жанрам</h2>
+            <table class="table table-sm table-striped stats-table">
+                <thead>
+                    <tr>
+                        <th>Жанр</th>
+                        <th class="text-end">Программ</th>
+                        <th class="text-end">Средняя цена, руб.</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in by_genre %}
+                        <tr>
+                            <td>{{ row.genre|capfirst }}</td>
+                            <td class="text-end">{{ row.programs_count }}</td>
+                            <td class="text-end">{{ row.average_price|floatformat:2 }}</td>
+                        </tr>
+                    {% empty %}
+                        <tr><td colspan="3" class="empty-message">Данные отсутствуют.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <h2 class="h4 mt-2">Популярные программы</h2>
+    <form method="get" class="row g-2 align-items-end mb-3">
+        <div class="col-auto">
+            <label for="min_sold" class="form-label">Продано билетов не менее</label>
+            <input
+                type="number"
+                id="min_sold"
+                name="min_sold"
+                min="1"
+                value="{{ min_sold }}"
+                class="form-control"
+            >
+        </div>
+        <div class="col-auto">
+            <button type="submit" class="btn btn-primary">Показать</button>
+        </div>
+    </form>
+
+    {% if error %}
+        <div class="alert alert-danger">{{ error }}</div>
+    {% endif %}
+
+    <ul class="list-group">
+        {% for row in popular %}
+            <li class="list-group-item d-flex justify-content-between">
+                <span>{{ row.title }}</span>
+                <span class="badge bg-primary">{{ row.tickets_sold }}</span>
+            </li>
+        {% empty %}
+            <li class="list-group-item empty-message">
+                Нет программ, на которые продано не менее {{ min_sold }} билетов.
+            </li>
+        {% endfor %}
+    </ul>
+{% endblock %}

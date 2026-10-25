@@ -15,21 +15,21 @@
                 <h1 class="card-title h3">Билет №{{ ticket.id }}</h1>
                 <p class="card-text">
                     <strong>Программа:</strong>
-                    <a href="{% url 'programs:detail' ticket.program.id %}">
-                        {{ ticket.program.title }}
+                    <a href="{% url 'programs:detail' ticket.program_id %}">
+                        {{ ticket.program_title }}
                     </a>
                 </p>
                 <p class="card-text">
                     <strong>Исполнитель:</strong>
-                    {{ ticket.program.artist.name }}
+                    {{ ticket.artist_name }}
                 </p>
                 <p class="card-text">
                     <strong>Площадка:</strong>
-                    {{ ticket.program.venue.name }}
+                    {{ ticket.venue_name }}
                 </p>
                 <p class="card-text">
                     <strong>Дата:</strong>
-                    {{ ticket.program.event_day|date:"d.m.Y" }}
+                    {{ ticket.event_day }}
                 </p>
                 <p class="card-text">
                     <strong>Место:</strong> {{ ticket.seat|upper }}

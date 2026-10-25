@@ -10,10 +10,15 @@
     <ul class="list-group">
         {% for ticket in tickets %}
             <li class="list-group-item d-flex justify-content-between align-items-center gap-2">
-                <a href="{% url 'tickets:detail' ticket.id %}">
-                    Билет №{{ ticket.id }} – {{ ticket.program.title }},
-                    место {{ ticket.seat|upper }}
-                </a>
+                <div>
+                    <a href="{% url 'tickets:detail' ticket.id %}">
+                        Билет №{{ ticket.id }} – {{ ticket.program_title }},
+                        место {{ ticket.seat|upper }}
+                    </a>
+                    <div class="text-muted small">
+                        {{ ticket.event_day }} · {{ ticket.venue_name }}
+                    </div>
+                </div>
                 {% include "tickets/includes/ticket_status.html" %}
             </li>
         {% empty %}

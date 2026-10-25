@@ -18,14 +18,14 @@
                 </p>
                 <p class="card-text">
                     <strong>Исполнитель:</strong>
-                    <a href="{% url 'artists:detail' program.artist.id %}">
-                        {{ program.artist.name }}
+                    <a href="{% url 'artists:detail' program.artist_id %}">
+                        {{ program.artist_name }}
                     </a>
                 </p>
                 <p class="card-text">
                     <strong>Площадка:</strong>
-                    <a href="{% url 'venues:detail' program.venue.id %}">
-                        {{ program.venue.name }}
+                    <a href="{% url 'venues:detail' program.venue_id %}">
+                        {{ program.venue_name }}
                     </a>
                 </p>
                 <p class="card-text">
@@ -33,7 +33,7 @@
                 </p>
                 <p class="card-text">
                     <strong>Дата:</strong>
-                    {{ program.event_day|date:"d.m.Y" }}
+                    {{ program.event_day }}
                     {% include "programs/includes/program_status.html" %}
                 </p>
                 <p class="card-text">

@@ -5,6 +5,12 @@
 {% block content %}
     <h1>Площадки</h1>
 
+    <p>
+        <a href="{% url 'venues:available' %}" class="btn btn-success">
+            Подобрать свободную площадку
+        </a>
+    </p>
+
     <p class="text-muted">Всего площадок: {{ venues|length }}</p>
 
     {% for venue in venues %}

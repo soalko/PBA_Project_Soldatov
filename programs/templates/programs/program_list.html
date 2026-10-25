@@ -10,10 +10,15 @@
     <ul class="list-group">
         {% for program in programs %}
             <li class="list-group-item d-flex justify-content-between align-items-center gap-2">
-                <a href="{% url 'programs:detail' program.id %}">
-                    {{ program.title|default:"Без названия" }}
-                    – {{ program.event_day|date:"d.m.Y" }}
-                </a>
+                <div>
+                    <a href="{% url 'programs:detail' program.id %}">
+                        {{ program.title|default:"Без названия" }}
+                        – {{ program.event_day }}
+                    </a>
+                    <div class="text-muted small">
+                        {{ program.artist_name }} · {{ program.venue_name }}
+                    </div>
+                </div>
                 {% include "programs/includes/program_status.html" %}
             </li>
         {% empty %}
