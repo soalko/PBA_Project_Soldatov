@@ -1,0 +1,267 @@
+[
+{
+  "model": "artists.artist",
+  "pk": 1,
+  "fields": {
+    "name": "Оркестр «Камертон»",
+    "country": "Россия",
+    "genre": "классика"
+  }
+},
+{
+  "model": "artists.artist",
+  "pk": 2,
+  "fields": {
+    "name": "Группа «Северный ветер»",
+    "country": "Россия",
+    "genre": "рок"
+  }
+},
+{
+  "model": "artists.artist",
+  "pk": 3,
+  "fields": {
+    "name": "Квартет «Синкопа»",
+    "country": "Россия",
+    "genre": "джаз"
+  }
+},
+{
+  "model": "artists.artist",
+  "pk": 4,
+  "fields": {
+    "name": "Хор «Глория»",
+    "country": "Беларусь",
+    "genre": "классика"
+  }
+},
+{
+  "model": "artists.artist",
+  "pk": 5,
+  "fields": {
+    "name": "Ансамбль «Степной ветер»",
+    "country": "Казахстан",
+    "genre": "фолк"
+  }
+},
+{
+  "model": "venues.venue",
+  "pk": 1,
+  "fields": {
+    "name": "Концертный зал «Октябрьский»",
+    "address": "Санкт-Петербург, Лиговский пр., 6",
+    "capacity": 1500
+  }
+},
+{
+  "model": "venues.venue",
+  "pk": 2,
+  "fields": {
+    "name": "Камерный зал «Консонанс»",
+    "address": "Казань, ул. Баумана, 12",
+    "capacity": 400
+  }
+},
+{
+  "model": "venues.venue",
+  "pk": 3,
+  "fields": {
+    "name": "Джаз-клуб «Синяя нота»",
+    "address": "Москва, ул. Пятницкая, 30",
+    "capacity": 120
+  }
+},
+{
+  "model": "programs.program",
+  "pk": 1,
+  "fields": {
+    "title": "Симфония осени",
+    "artist": 1,
+    "venue": 1,
+    "genre": "классика",
+    "event_date": "2026-11-20",
+    "base_price": "2500.00"
+  }
+},
+{
+  "model": "programs.program",
+  "pk": 2,
+  "fields": {
+    "title": "Джазовые вечера",
+    "artist": 3,
+    "venue": 3,
+    "genre": "джаз",
+    "event_date": "2026-12-05",
+    "base_price": "1800.00"
+  }
+},
+{
+  "model": "programs.program",
+  "pk": 3,
+  "fields": {
+    "title": "Рождественская оратория",
+    "artist": 4,
+    "venue": 2,
+    "genre": "классика",
+    "event_date": "2026-12-24",
+    "base_price": "2000.00"
+  }
+},
+{
+  "model": "programs.program",
+  "pk": 4,
+  "fields": {
+    "title": "Рок-хиты 90-х",
+    "artist": 2,
+    "venue": 1,
+    "genre": "рок",
+    "event_date": "2026-10-10",
+    "base_price": "3000.00"
+  }
+},
+{
+  "model": "programs.program",
+  "pk": 5,
+  "fields": {
+    "title": "Вечер камерной музыки",
+    "artist": 1,
+    "venue": 2,
+    "genre": "классика",
+    "event_date": "2026-09-15",
+    "base_price": "1500.00"
+  }
+},
+{
+  "model": "programs.program",
+  "pk": 6,
+  "fields": {
+    "title": "Джаз под Новый год",
+    "artist": 3,
+    "venue": 3,
+    "genre": "джаз",
+    "event_date": "2026-12-30",
+    "base_price": "2200.00"
+  }
+},
+{
+  "model": "tickets.ticket",
+  "pk": 1,
+  "fields": {
+    "program": 1,
+    "seat": "A12",
+    "category": "партер",
+    "price": "2125.00",
+    "status": "sold"
+  }
+},
+{
+  "model": "tickets.ticket",
+  "pk": 2,
+  "fields": {
+    "program": 1,
+    "seat": "A13",
+    "category": "партер",
+    "price": "2500.00",
+    "status": "sold"
+  }
+},
+{
+  "model": "tickets.ticket",
+  "pk": 3,
+  "fields": {
+    "program": 1,
+    "seat": "B7",
+    "category": "балкон",
+    "price": "1750.00",
+    "status": "cancelled"
+  }
+},
+{
+  "model": "tickets.ticket",
+  "pk": 4,
+  "fields": {
+    "program": 1,
+    "seat": "C1",
+    "category": "балкон",
+    "price": "2500.00",
+    "status": "sold"
+  }
+},
+{
+  "model": "tickets.ticket",
+  "pk": 5,
+  "fields": {
+    "program": 2,
+    "seat": "T4",
+    "category": "столик",
+    "price": "1800.00",
+    "status": "sold"
+  }
+},
+{
+  "model": "tickets.ticket",
+  "pk": 6,
+  "fields": {
+    "program": 2,
+    "seat": "T5",
+    "category": "столик",
+    "price": "1260.00",
+    "status": "sold"
+  }
+},
+{
+  "model": "tickets.ticket",
+  "pk": 7,
+  "fields": {
+    "program": 3,
+    "seat": "A1",
+    "category": "партер",
+    "price": "2000.00",
+    "status": "sold"
+  }
+},
+{
+  "model": "tickets.ticket",
+  "pk": 8,
+  "fields": {
+    "program": 4,
+    "seat": "D10",
+    "category": "танцпол",
+    "price": "3000.00",
+    "status": "sold"
+  }
+},
+{
+  "model": "tickets.ticket",
+  "pk": 9,
+  "fields": {
+    "program": 4,
+    "seat": "D11",
+    "category": "танцпол",
+    "price": "2550.00",
+    "status": "sold"
+  }
+},
+{
+  "model": "tickets.ticket",
+  "pk": 10,
+  "fields": {
+    "program": 5,
+    "seat": "A3",
+    "category": "партер",
+    "price": "1050.00",
+    "status": "sold"
+  }
+},
+{
+  "model": "tickets.ticket",
+  "pk": 11,
+  "fields": {
+    "program": 1,
+    "seat": "A14",
+    "category": "партер",
+    "price": "2500.00",
+    "status": "sold"
+  }
+}
+]

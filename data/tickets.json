@@ -34,77 +34,53 @@
   {
     "id": 5,
     "program_id": 2,
-    "seat": "F101",
-    "category": "танцпол",
-    "price": 3500.0,
-    "status": "sold"
-  },
-  {
-    "id": 6,
-    "program_id": 2,
-    "seat": "F102",
-    "category": "танцпол",
-    "price": 2975.0,
-    "status": "sold"
-  },
-  {
-    "id": 7,
-    "program_id": 2,
-    "seat": "F103",
-    "category": "танцпол",
-    "price": 3500.0,
-    "status": "cancelled"
-  },
-  {
-    "id": 8,
-    "program_id": 3,
     "seat": "T4",
     "category": "столик",
     "price": 1800.0,
     "status": "sold"
   },
   {
-    "id": 9,
-    "program_id": 3,
+    "id": 6,
+    "program_id": 2,
     "seat": "T5",
     "category": "столик",
     "price": 1260.0,
     "status": "sold"
   },
   {
-    "id": 10,
-    "program_id": 4,
+    "id": 7,
+    "program_id": 3,
     "seat": "A1",
     "category": "партер",
     "price": 2000.0,
     "status": "sold"
   },
   {
-    "id": 11,
-    "program_id": 5,
+    "id": 8,
+    "program_id": 4,
     "seat": "D10",
     "category": "танцпол",
     "price": 3000.0,
     "status": "sold"
   },
   {
-    "id": 12,
-    "program_id": 5,
+    "id": 9,
+    "program_id": 4,
     "seat": "D11",
     "category": "танцпол",
     "price": 2550.0,
     "status": "sold"
   },
   {
-    "id": 13,
-    "program_id": 6,
+    "id": 10,
+    "program_id": 5,
     "seat": "A3",
     "category": "партер",
     "price": 1050.0,
     "status": "sold"
   },
   {
-    "id": 14,
+    "id": 11,
     "program_id": 1,
     "seat": "A14",
     "category": "партер",
