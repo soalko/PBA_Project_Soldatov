@@ -4,6 +4,10 @@ import pytest
 from django.urls import reverse
 
 import homepage.views
+from artists.models import Artist
+from programs.models import Program
+from tickets.models import Ticket
+from venues.models import Venue
 
 
 @pytest.mark.parametrize(
@@ -63,12 +67,14 @@ def test_repeated_fragments_are_included(client, url, include):
     assert include in names
 
 
-def test_context_contains_rows_from_database(client):
+def test_context_contains_model_objects(client, sample_data):
     response = client.get("/venues/")
-    # Площадки упорядочены SQL-запросом по убыванию вместимости.
-    assert [venue["id"] for venue in response.context["venues"]] == [2, 1]
+    # Площадки упорядочены по убыванию вместимости.
+    assert list(response.context["venues"]) == [
+        sample_data.arena, sample_data.hall,
+    ]
     response = client.get("/tickets/2/")
-    assert response.context["ticket"]["is_active"] == 0
+    assert response.context["ticket"].is_active() is False
 
 
 def test_pages_share_common_layout(client):
@@ -114,12 +120,12 @@ def test_index_links_to_sections(client):
 
 def test_page_title_comes_from_object(client):
     html = client.get("/venues/2/").content.decode()
-    assert "Крокус – Концертные программы" in html
+    assert "Арена – Концертные программы" in html
 
 
 def test_list_shows_count_with_length_filter(client):
     assert "Всего площадок: 2" in client.get("/venues/").content.decode()
-    assert "Всего билетов: 2" in client.get("/tickets/").content.decode()
+    assert "Найдено билетов: 2" in client.get("/tickets/").content.decode()
 
 
 def test_event_date_is_formatted(client):
@@ -127,18 +133,18 @@ def test_event_date_is_formatted(client):
     assert expected in client.get("/programs/1/").content.decode()
 
 
-def test_default_filter_for_empty_name(client, run_sql):
-    run_sql("UPDATE venues SET name = '', address = NULL WHERE id = 1")
+def test_default_filter_for_empty_name(client, sample_data):
+    Venue.objects.filter(pk=1).update(name="", address="")
     html = client.get("/venues/").content.decode()
     assert "Без названия" in html
     assert "адрес не указан" in html
 
 
-def test_empty_collection_message(client, run_sql):
-    # Из-за внешних ключей сначала удаляются зависимые записи.
-    run_sql("DELETE FROM tickets")
-    run_sql("DELETE FROM programs")
-    run_sql("DELETE FROM artists")
+def test_empty_collection_message(client):
+    # on_delete=PROTECT: сначала удаляются зависимые записи.
+    Ticket.objects.all().delete()
+    Program.objects.all().delete()
+    Artist.objects.all().delete()
     html = client.get("/artists/").content.decode()
     assert "Список исполнителей пуст." in html
     assert "Всего исполнителей: 0" in html
@@ -165,18 +171,15 @@ def test_ticket_status_badges(client):
 
 
 @pytest.mark.parametrize(
-    "url, text",
-    [
-        ("/artists/999/", "Исполнитель не найден"),
-        ("/venues/999/", "Площадка не найдена"),
-        ("/programs/999/", "Программа не найдена"),
-        ("/tickets/999/", "Билет не найден"),
-    ],
+    "url",
+    ["/artists/999/", "/venues/999/", "/programs/999/", "/tickets/999/"],
 )
-def test_unknown_id_returns_404(client, url, text):
+def test_unknown_id_returns_404(client, url):
+    # get_object_or_404() вызывает Http404, и Django показывает
+    # общую страницу 404 проекта (handler404).
     response = client.get(url)
     assert response.status_code == 404
-    assert text in response.content.decode()
+    assert "404 – страница не найдена" in response.content.decode()
 
 
 @pytest.mark.parametrize("url", ["/nonexistent/", "/venues/abc/"])
@@ -186,8 +189,8 @@ def test_unknown_url_uses_custom_404_page(client, url):
     assert "404 – страница не найдена" in response.content.decode()
 
 
-def test_html_special_characters_are_escaped(client, run_sql):
-    run_sql("UPDATE artists SET name = ? WHERE id = 1", ["<b>AC&DC</b>"])
+def test_html_special_characters_are_escaped(client):
+    Artist.objects.filter(pk=1).update(name="<b>AC&DC</b>")
     html = client.get("/artists/1/").content.decode()
     assert "&lt;b&gt;AC&amp;DC&lt;/b&gt;" in html
     assert "<b>AC&DC</b>" not in html
@@ -198,19 +201,21 @@ def test_page_function_is_removed():
 
 
 # ---------------------------------------------------------------
-# ПР7: страницы получают данные из SQLite
+# ПР7 и ПР9: страницы получают данные из базы (теперь через ORM)
 # ---------------------------------------------------------------
 
 
-def test_page_shows_current_database_data(client, run_sql):
-    run_sql("UPDATE venues SET name = 'Октябрьский (обновлено)' WHERE id = 1")
+def test_page_shows_current_database_data(client, sample_data):
+    venue = sample_data.hall
+    venue.name = "Октябрьский (обновлено)"
+    venue.save()
     assert "Октябрьский (обновлено)" in client.get("/venues/").content.decode()
 
 
 def test_program_list_joins_artist_and_venue(client):
     html = client.get("/programs/").content.decode()
     assert "Оркестр «Камертон» · Октябрьский" in html
-    assert "Оркестр «Камертон» · Крокус" in html
+    assert "Оркестр «Камертон» · Арена" in html
 
 
 def test_ticket_pages_join_related_tables(client):
@@ -235,14 +240,12 @@ def test_artist_genre_filter(client):
 
 def test_artist_genre_list_uses_distinct(client):
     response = client.get("/artists/")
-    assert [row["genre"] for row in response.context["genres"]] == [
-        "классика",
-    ]
+    assert list(response.context["genres"]) == ["классика"]
 
 
 def test_user_input_is_passed_as_parameter(client):
-    # Строка с SQL-кодом сравнивается с genre как обычное значение
-    # и не меняет условие запроса.
+    # ORM передаёт значение параметром запроса: строка с SQL-кодом
+    # сравнивается с genre как обычный текст.
     response = client.get("/artists/", {"genre": "' OR '1'='1"})
     assert response.status_code == 200
     assert len(response.context["artists"]) == 0
@@ -258,8 +261,8 @@ def test_available_venues_page_without_date_shows_form(client):
 def test_available_venues_excludes_busy_venue(client):
     today = date.today().isoformat()
     response = client.get("/venues/available/", {"date": today})
-    names = [venue["name"] for venue in response.context["venues"]]
-    # На площадке «Крокус» сегодня проходит программа.
+    names = [venue.name for venue in response.context["venues"]]
+    # На площадке «Арена» сегодня проходит программа.
     assert names == ["Октябрьский"]
 
 
@@ -269,8 +272,8 @@ def test_available_venues_filters_by_capacity(client):
         "/venues/available/",
         {"date": future, "capacity": "2000"},
     )
-    names = [venue["name"] for venue in response.context["venues"]]
-    assert names == ["Крокус"]
+    names = [venue.name for venue in response.context["venues"]]
+    assert names == ["Арена"]
 
 
 def test_available_venues_empty_result_message(client):
@@ -309,6 +312,7 @@ def test_statistics_page(client):
 
 def test_statistics_keeps_programs_without_sales(client):
     rows = client.get("/tickets/statistics/").context["by_program"]
+    # Программа без проданных билетов осталась с нулём.
     sold = {row["title"]: row["tickets_sold"] for row in rows}
     assert sold == {"Симфония осени": 1, "Вечер классики": 0}
 
@@ -325,7 +329,7 @@ def test_statistics_having_threshold(client):
         "Симфония осени",
     ]
     response = client.get("/tickets/statistics/", {"min_sold": "2"})
-    assert response.context["popular"] == []
+    assert list(response.context["popular"]) == []
     assert "не менее 2 билетов" in response.content.decode()
 
 

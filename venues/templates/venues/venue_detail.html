@@ -1,41 +1,47 @@
 {% extends "base.html" %}
 
-{% block title %}
-    {% if venue %}
-        {{ venue.name }} – Концертные программы
-    {% else %}
-        Площадка не найдена – Концертные программы
-    {% endif %}
-{% endblock %}
+{% block title %}{{ venue.name }} – Концертные программы{% endblock %}
 
 {% block content %}
-    {% if venue %}
-        <div class="card">
-            <div class="card-body">
-                <h1 class="card-title h3">{{ venue.name }}</h1>
-                <p class="card-text">
-                    <strong>ID:</strong> {{ venue.id }}
-                </p>
-                <p class="card-text">
-                    <strong>Адрес:</strong> {{ venue.address }}
-                </p>
-                <p class="card-text">
-                    <strong>Вместимость:</strong> {{ venue.capacity }} мест
-                </p>
-                <p class="card-text">
-                    Доступность на {{ today|date:"d.m.Y" }}:
-                    {% if is_available %}
-                        <span class="badge bg-success">свободна</span>
-                    {% else %}
-                        <span class="badge bg-danger">занята</span>
-                    {% endif %}
-                </p>
-            </div>
+    <div class="card">
+        <div class="card-body">
+            <h1 class="card-title h3">{{ venue.name }}</h1>
+            <p class="card-text">
+                <strong>ID:</strong> {{ venue.id }}
+            </p>
+            <p class="card-text">
+                <strong>Адрес:</strong>
+                {{ venue.address|default:"не указан" }}
+            </p>
+            <p class="card-text">
+                <strong>Вместимость:</strong> {{ venue.capacity }} мест
+            </p>
+            <p class="card-text">
+                Доступность на {{ today|date:"d.m.Y" }}:
+                {% if is_available %}
+                    <span class="badge bg-success">свободна</span>
+                {% else %}
+                    <span class="badge bg-danger">занята</span>
+                {% endif %}
+            </p>
         </div>
-    {% else %}
-        <h1 class="text-danger">Площадка не найдена</h1>
-        <p>Площадка с указанным идентификатором отсутствует.</p>
-    {% endif %}
+    </div>
+
+    <h2 class="h4 mt-4">Программы на площадке</h2>
+    <ul class="list-group">
+        {% for program in programs %}
+            <li class="list-group-item">
+                <a href="{% url 'programs:detail' program.id %}">
+                    {{ program.title }}
+                </a>
+                – {{ program.event_date|date:"d.m.Y" }}, {{ program.artist.name }}
+            </li>
+        {% empty %}
+            <li class="list-group-item empty-message">
+                На площадке пока нет программ.
+            </li>
+        {% endfor %}
+    </ul>
 
     <a
         href="{% url 'venues:list' %}"

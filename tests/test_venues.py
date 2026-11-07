@@ -35,7 +35,7 @@ def test_venue_str():
 def test_venue_from_data():
     data = {
         "id": 2,
-        "name": "Крокус",
+        "name": "Арена",
         "address": "Москва",
         "capacity": 6000,
     }
@@ -53,7 +53,7 @@ def test_add_venue():
 def test_find_venues_by_query():
     venues = []
     add_venue(venues, "Октябрьский", "СПб", 1500)
-    add_venue(venues, "Крокус", "Москва", 6000)
+    add_venue(venues, "Арена", "Москва", 6000)
     found = find_venues(venues, "октябрь")
     assert len(found) == 1
     assert found[0].name == "Октябрьский"
@@ -69,15 +69,15 @@ def test_check_venue_capacity():
 def test_filter_venues_by_capacity():
     venues = []
     add_venue(venues, "Октябрьский", "СПб", 1500)
-    add_venue(venues, "Крокус", "Москва", 6000)
+    add_venue(venues, "Арена", "Москва", 6000)
     filtered = filter_venues_by_capacity(venues, 3000)
     assert len(filtered) == 1
-    assert filtered[0].name == "Крокус"
+    assert filtered[0].name == "Арена"
 
 
 def test_sort_venues():
     venues = []
-    add_venue(venues, "Крокус", "Москва", 6000)
+    add_venue(venues, "Арена", "Москва", 6000)
     add_venue(venues, "Октябрьский", "СПб", 1500)
     ordered = sort_venues(venues)
     assert ordered[0].capacity == 1500

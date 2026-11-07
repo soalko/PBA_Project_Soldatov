@@ -1,82 +1,61 @@
-from django.shortcuts import render
+from django.db.models import Count
+from django.shortcuts import get_object_or_404, render
 
-from db.database import fetch_all, fetch_one
-
-# Список исполнителей (запрос 1 в sql/queries.sql).
-ARTIST_LIST_SQL = """
-    SELECT id, name, country, genre
-    FROM artists
-    ORDER BY name
-"""
-
-# Жанры без повторов для фильтра (запрос 3).
-GENRE_LIST_SQL = """
-    SELECT DISTINCT genre
-    FROM artists
-    ORDER BY genre
-"""
-
-# Исполнители выбранного жанра (запрос 4).
-ARTISTS_BY_GENRE_SQL = """
-    SELECT id, name, country, genre
-    FROM artists
-    WHERE genre = ?
-    ORDER BY name
-"""
-
-ARTIST_DETAIL_SQL = """
-    SELECT id, name, country, genre
-    FROM artists
-    WHERE id = ?
-"""
-
-# Программы исполнителя с площадками (запрос 9).
-ARTIST_PROGRAMS_SQL = """
-    SELECT programs.id,
-           programs.title,
-           strftime('%d.%m.%Y', programs.event_date) AS event_day,
-           venues.name AS venue_name
-    FROM programs
-    JOIN venues ON programs.venue_id = venues.id
-    WHERE programs.artist_id = ?
-    ORDER BY programs.event_date
-"""
+from .models import Artist
 
 
 def artists(request):
-    """Список исполнителей; ?genre=... оставляет только один жанр."""
+    """Список исполнителей с поиском по названию и фильтром по жанру.
+
+    Пример адреса: /artists/?q=ветер&genre=рок
+    """
+    query = request.GET.get("q", "").strip()
     genre = request.GET.get("genre", "").strip()
 
+    # annotate() добавляет каждому исполнителю вычисляемое поле:
+    # число его программ (LEFT JOIN + GROUP BY + COUNT в SQL).
+    # Исполнители без программ остаются в списке со значением 0.
+    artists_list = Artist.objects.annotate(
+        programs_count=Count("programs"),
+    ).order_by("name")
+
+    if query:
+        # Поиск подстроки без учёта регистра, в том числе для
+        # кириллицы (LOWER переопределена в homepage/apps.py).
+        artists_list = artists_list.filter(
+            name__lower__contains=query.lower(),
+        )
     if genre:
-        artists_list = fetch_all(ARTISTS_BY_GENRE_SQL, [genre])
-    else:
-        artists_list = fetch_all(ARTIST_LIST_SQL)
+        # Фильтрация по одному условию: точное совпадение жанра.
+        artists_list = artists_list.filter(genre=genre)
+
+    # Жанры без повторов для выпадающего списка (SELECT DISTINCT).
+    genres = (
+        Artist.objects.order_by("genre")
+        .values_list("genre", flat=True)
+        .distinct()
+    )
 
     context = {
         "artists": artists_list,
-        "genres": fetch_all(GENRE_LIST_SQL),
+        "genres": genres,
+        "query": query,
         "selected_genre": genre,
     }
-
     return render(request, "artists/artist_list.html", context)
 
 
 def artist_detail(request, artist_id):
-    """Страница исполнителя; для неизвестного id - ответ с кодом 404."""
-    artist = fetch_one(ARTIST_DETAIL_SQL, [artist_id])
-
-    programs_list = []
-    if artist is not None:
-        programs_list = fetch_all(ARTIST_PROGRAMS_SQL, [artist_id])
+    """Страница исполнителя и его программ; неизвестный id — 404."""
+    artist = get_object_or_404(Artist, pk=artist_id)
+    # Обратная связь artist.programs (related_name в модели Program).
+    # select_related("venue") загружает площадки тем же запросом.
+    programs_list = artist.programs.select_related("venue").order_by(
+        "event_date",
+    )
 
     context = {
         "artist": artist,
         "programs": programs_list,
     }
-
-    return render(
-        request,
-        "artists/artist_detail.html",
-        context,
-        status=404 if artist is None else 200,
-    )
+    return render(request, "artists/artist_detail.html", context)

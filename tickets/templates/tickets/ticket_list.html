@@ -5,26 +5,132 @@
 {% block content %}
     <h1>Билеты</h1>
 
-    <p class="text-muted">Всего билетов: {{ tickets|length }}</p>
+    <form method="get" class="row g-2 align-items-end mb-3">
+        <div class="col-md-3">
+            <label for="program" class="form-label">Программа</label>
+            <select id="program" name="program" class="form-select">
+                <option value="">все программы</option>
+                {% for program in programs %}
+                    <option
+                        value="{{ program.pk }}"
+                        {% if selected_program == program.pk|stringformat:"s" %}selected{% endif %}
+                    >
+                        {{ program.title }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label for="venue" class="form-label">Площадка</label>
+            <select id="venue" name="venue" class="form-select">
+                <option value="">все площадки</option>
+                {% for venue in venues %}
+                    <option
+                        value="{{ venue.pk }}"
+                        {% if selected_venue == venue.pk|stringformat:"s" %}selected{% endif %}
+                    >
+                        {{ venue.name }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label for="status" class="form-label">Статус</label>
+            <select id="status" name="status" class="form-select">
+                <option value="">любой</option>
+                {% for value, label in status_choices %}
+                    <option
+                        value="{{ value }}"
+                        {% if selected_status == value %}selected{% endif %}
+                    >
+                        {{ label }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label for="sort" class="form-label">Сортировать по</label>
+            <select id="sort" name="sort" class="form-select">
+                <option value="id" {% if sort == "id" %}selected{% endif %}>номеру</option>
+                <option value="date" {% if sort == "date" %}selected{% endif %}>дате концерта</option>
+                <option value="program" {% if sort == "program" %}selected{% endif %}>программе</option>
+                <option value="price" {% if sort == "price" %}selected{% endif %}>цене ↑</option>
+                <option value="-price" {% if sort == "-price" %}selected{% endif %}>цене ↓</option>
+            </select>
+        </div>
+        <div class="col-md-2">
+            <button type="submit" class="btn btn-primary">Найти</button>
+            <a href="{% url 'tickets:list' %}" class="btn btn-outline-secondary">
+                Сбросить
+            </a>
+        </div>
+    </form>
 
-    <ul class="list-group">
+    <p class="text-muted">
+        Найдено билетов: {{ page_obj.paginator.count }}
+        {% if page_obj.paginator.num_pages > 1 %}
+            (страница {{ page_obj.number }} из {{ page_obj.paginator.num_pages }})
+        {% endif %}
+    </p>
+
+    <ul class="list-group mb-3">
         {% for ticket in tickets %}
             <li class="list-group-item d-flex justify-content-between align-items-center gap-2">
                 <div>
                     <a href="{% url 'tickets:detail' ticket.id %}">
-                        Билет №{{ ticket.id }} – {{ ticket.program_title }},
+                        Билет №{{ ticket.id }} – {{ ticket.program.title }},
                         место {{ ticket.seat|upper }}
                     </a>
                     <div class="text-muted small">
-                        {{ ticket.event_day }} · {{ ticket.venue_name }}
+                        {{ ticket.program.event_date|date:"d.m.Y" }}
+                        · {{ ticket.program.venue.name }}
+                        · {{ ticket.price|floatformat:0 }} руб.
                     </div>
                 </div>
                 {% include "tickets/includes/ticket_status.html" %}
             </li>
         {% empty %}
             <li class="list-group-item empty-message">
-                Проданных билетов нет.
+                Билеты не найдены.
             </li>
         {% endfor %}
     </ul>
+
+    {% if page_obj.paginator.num_pages > 1 %}
+        <nav aria-label="Навигация по страницам">
+            <ul class="pagination justify-content-center">
+                {% if page_obj.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="{% querystring page=page_obj.previous_page_number %}">Назад</a>
+                    </li>
+                {% else %}
+                    <li class="page-item disabled">
+                        <span class="page-link">Назад</span>
+                    </li>
+                {% endif %}
+
+                {% for page_number in page_obj.paginator.page_range %}
+                    {% if page_number == page_obj.number %}
+                        <li class="page-item active" aria-current="page">
+                            <span class="page-link">{{ page_number }}</span>
+                        </li>
+                    {% else %}
+                        <li class="page-item">
+                            <a class="page-link" href="{% querystring page=page_number %}">{{ page_number }}</a>
+                        </li>
+                    {% endif %}
+                {% endfor %}
+
+                {% if page_obj.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="{% querystring page=page_obj.next_page_number %}">Далее</a>
+                    </li>
+                {% else %}
+                    <li class="page-item disabled">
+                        <span class="page-link">Далее</span>
+                    </li>
+                {% endif %}
+            </ul>
+        </nav>
+    {% endif %}
 {% endblock %}

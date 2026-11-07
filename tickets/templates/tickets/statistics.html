@@ -53,6 +53,7 @@
         <thead>
             <tr>
                 <th>Программа</th>
+                <th>Площадка</th>
                 <th class="text-end">Продано билетов</th>
                 <th class="text-end">Выручка, руб.</th>
             </tr>
@@ -61,11 +62,12 @@
             {% for row in by_program %}
                 <tr>
                     <td>{{ row.title }}</td>
+                    <td>{{ row.venue_name }}</td>
                     <td class="text-end">{{ row.tickets_sold }}</td>
                     <td class="text-end">{{ row.revenue|floatformat:2 }}</td>
                 </tr>
             {% empty %}
-                <tr><td colspan="3" class="empty-message">Данные отсутствуют.</td></tr>
+                <tr><td colspan="4" class="empty-message">Данные отсутствуют.</td></tr>
             {% endfor %}
         </tbody>
     </table>

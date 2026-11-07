@@ -5,7 +5,10 @@
 дополнена веб-интерфейсом на Django (ПР5), который в ПР6 переведён
 на систему шаблонов Django (Django Template Language). В ПР7 данные
 перенесены из JSON-файлов в реляционную базу SQLite: веб-страницы
-получают их SQL-запросами через модуль `sqlite3`.
+получают их SQL-запросами через модуль `sqlite3`. В ПР9 слой данных
+переведён на Django ORM: сущности описаны моделями, структура базы
+управляется миграциями, представления получают данные через
+менеджеры моделей.
 
 ## Назначение
 
@@ -13,7 +16,8 @@
 или организатора мероприятий: ведёт реестр программ и исполнителей,
 учитывает площадки и расписание, позволяет продавать и отменять
 билеты с расчётом цены по промокоду. Веб-версия хранит данные в базе
-SQLite `data/concerts.sqlite`, консольная — в JSON-файлах.
+Django `db.sqlite3` и работает с ними через Django ORM, консольная —
+в JSON-файлах.
 
 Приложение позволяет:
 
@@ -22,7 +26,11 @@ SQLite `data/concerts.sqlite`, консольная — в JSON-файлах.
 - видеть доступность площадки на текущую дату;
 - подбирать площадку, свободную в выбранную дату и вмещающую
   нужное число зрителей;
-- фильтровать исполнителей по жанру;
+- искать исполнителей по названию и фильтровать их по жанру;
+- искать программы по названию, исполнителю и площадке, сортировать
+  афишу по дате, названию, исполнителю и цене;
+- фильтровать билеты по программе, площадке и статусу, сортировать
+  их и просматривать постранично;
 - видеть статус программы и число активных билетов на неё;
 - смотреть статистику продаж: выручку, продажи по программам,
   загрузку площадок, жанры и популярные программы;
@@ -37,9 +45,10 @@ SQLite `data/concerts.sqlite`, консольная — в JSON-файлах.
 - HTML5 — разметка веб-страниц;
 - CSS3 и Bootstrap 5.3 — оформление страниц;
 - JavaScript — небольшое клиентское поведение;
-- SQLite, язык SQL и модуль `sqlite3` — хранение и выборка данных;
+- Django ORM — модели, связи, миграции и запросы к базе (ПР9);
+- SQLite — СУБД; язык SQL и модуль `sqlite3` — слой данных ПР7;
 - JSON — исходные данные и хранилище консольной версии;
-- pytest — автоматизированные тесты;
+- pytest и pytest-django — автоматизированные тесты;
 - flake8 — проверка качества кода.
 
 ## Целевая аудитория
@@ -91,22 +100,21 @@ SQLite `data/concerts.sqlite`, консольная — в JSON-файлах.
 | URL | Имя маршрута | Шаблон | Страница |
 |-----|--------------|--------|----------|
 | `/` | `homepage:index` | `homepage/index.html` | главная: описание приложения и навигация |
-| `/artists/` | `artists:list` | `artists/artist_list.html` | список исполнителей, фильтр `?genre=` |
+| `/artists/` | `artists:list` | `artists/artist_list.html` | список исполнителей, поиск `?q=`, фильтр `?genre=` |
 | `/artists/<int:artist_id>/` | `artists:detail` | `artists/artist_detail.html` | карточка исполнителя и его программы |
 | `/venues/` | `venues:list` | `venues/venue_list.html` | список площадок |
 | `/venues/available/` | `venues:available` | `venues/available.html` | подбор свободной площадки по дате и вместимости |
 | `/venues/<int:venue_id>/` | `venues:detail` | `venues/venue_detail.html` | карточка площадки, доступность на текущую дату |
-| `/programs/` | `programs:list` | `programs/program_list.html` | афиша: программы по дате с исполнителем и площадкой |
+| `/programs/` | `programs:list` | `programs/program_list.html` | афиша: поиск `?q=`, фильтр `?genre=`, сортировка `?sort=` |
 | `/programs/<int:program_id>/` | `programs:detail` | `programs/program_detail.html` | карточка программы, исполнитель, площадка, активные билеты |
-| `/tickets/` | `tickets:list` | `tickets/ticket_list.html` | список билетов со статусами |
+| `/tickets/` | `tickets:list` | `tickets/ticket_list.html` | билеты: фильтры `?program=`, `?venue=`, `?status=`, сортировка `?sort=`, страницы `?page=` |
 | `/tickets/<int:ticket_id>/` | `tickets:detail` | `tickets/ticket_detail.html` | карточка билета и связанной программы |
 | `/tickets/statistics/` | `tickets:statistics` | `tickets/statistics.html` | статистика продаж, порог `?min_sold=` |
 
 Если объект с указанным идентификатором не найден, страница
-возвращает ответ с кодом статуса 404: view передаёт в шаблон
-`None`, шаблон через `{% if %}` / `{% else %}` выводит сообщение
-(«Площадка не найдена» и т. п.), а `render(..., status=404)` задаёт
-код ответа. Адреса, которым не соответствует ни один маршрут,
+возвращает ответ с кодом статуса 404: представление получает объект
+функцией `get_object_or_404()`, которая при отсутствии записи
+вызывает исключение `Http404`. Его, как и адреса без маршрута,
 обрабатывает общий обработчик `handler404`
 (`homepage.views.page_not_found`, шаблон `homepage/404.html`);
 он виден при `DEBUG = False`.
@@ -246,7 +254,21 @@ Bootstrap 5.3 (CDN) сохранён для базовой вёрстки; со�
 
 ## Основные операции
 
-### В веб-интерфейсе — средствами SQL (ПР7)
+### В веб-интерфейсе — средствами Django ORM (ПР9)
+
+| Операция | ПР7 (SQL) | ПР9 (ORM) |
+|----------|-----------|-----------|
+| список записей | `SELECT ... ORDER BY` | `Venue.objects.order_by("-capacity", "name")` |
+| запись по id | `WHERE id = ?` + проверка `None` | `get_object_or_404(Venue, pk=venue_id)` |
+| фильтр по жанру | `WHERE genre = ?` | `.filter(genre=genre)` |
+| свободные площадки | подзапрос `NOT IN` | `.exclude(pk__in=busy_venue_ids)` |
+| связанные данные | `JOIN ... ON ...` | `select_related("artist", "venue")`, `artist.programs.all()` |
+| итоги продаж | `COUNT`, `SUM`, `AVG` | `.aggregate(Count(...), Sum(...), Avg(...))` |
+| продажи по программам | `LEFT JOIN`, `GROUP BY` | `.annotate(tickets_sold=Count("tickets", filter=Q(...)))` |
+| порог продаж | `HAVING` | `.filter(tickets_sold__gte=min_sold)` после `annotate()` |
+| `is_upcoming`, `is_active` | вычисляемые столбцы | методы моделей `Program.is_upcoming()`, `Ticket.is_active()` |
+
+### В веб-интерфейсе — средствами SQL (ПР7, предыдущая реализация)
 
 Операции, которые в ПР3–ПР6 выполнял Python-код, перенесены в
 SQL-запросы:
@@ -265,8 +287,9 @@ SQL-запросы:
 
 ### Отложены до следующих работ
 
-Операции работают в консольной версии; в веб-интерфейсе появятся
-вместе с формами и POST-запросами:
+Операции работают в консольной версии и через ORM (Django shell,
+модели `Ticket.cancel()` и т. д.); на веб-страницах появятся вместе с
+формами и POST-запросами:
 
 - добавление исполнителя, площадки, программы;
 - продажа билета с расчётом цены по промокоду;
@@ -274,19 +297,139 @@ SQL-запросы:
 
 ## Хранение данных
 
-- **Веб-версия (ПР7)** — база SQLite `data/concerts.sqlite`
-  (см. следующий раздел).
+- **Веб-версия (ПР9)** — база Django `db.sqlite3`, таблицы которой
+  созданы миграциями; доступ через Django ORM (см. следующий раздел).
+- **Исходная база ПР7** — `data/concerts.sqlite`: сохранена без
+  изменений как источник данных для переноса в ORM.
 - **Консольная версия (ПР3)** — JSON-файлы каталога `data/`:
   `artists.json`, `venues.json`, `programs.json`, `tickets.json`.
   При загрузке: `JSON → dict → объект` с восстановлением связей
   через идентификаторы; при сохранении: `объект → dict → JSON`.
   Эти же файлы — источник данных для импорта в SQLite.
 
-Django ORM пока не используется: база данных Django (`db.sqlite3`)
-нужна только служебным приложениям фреймворка и не связана с
-`data/concerts.sqlite`.
+Файл `db.sqlite3` не хранится в репозитории (`.gitignore`): после
+клонирования таблицы создаются миграциями, данные переносятся
+скриптом или загружаются из fixture (раздел «Запуск приложения»).
 
-## База данных SQLite (ПР7)
+## Django ORM (ПР9)
+
+Путь данных в веб-приложении:
+
+```text
+view → Django ORM (модель.objects) → SQL → SQLite → объекты моделей → шаблон
+```
+
+### Модели
+
+| Модель | Файл | Поля | Таблица |
+|--------|------|------|---------|
+| `Artist` | `artists/models.py` | `name`, `country` (необяз.), `genre` | `artists_artist` |
+| `Venue` | `venues/models.py` | `name`, `address` (необяз.), `capacity` (> 0) | `venues_venue` |
+| `Program` | `programs/models.py` | `title`, `artist` (FK), `venue` (FK), `genre`, `event_date` (`DateField`), `base_price` (`DecimalField`) | `programs_program` |
+| `Ticket` | `tickets/models.py` | `program` (FK), `seat`, `category` (необяз.), `price` (`DecimalField`), `status` (`sold`/`cancelled`) | `tickets_ticket` |
+
+Первичный ключ `id` Django создаёт сам (`BigAutoField`,
+`DEFAULT_AUTO_FIELD`). Необязательные строковые поля объявлены с
+`blank=True` и хранят пустую строку вместо `NULL`. Деньги хранятся
+в `DecimalField`, дата концерта — в `DateField`.
+
+Методы моделей перенесены из классов ПР3: `Venue.is_suitable_for()`,
+`Venue.is_free_on(day)`, `Program.is_upcoming()`, `Ticket.is_active()`,
+`Ticket.cancel()` (меняет статус и сохраняет только поле `status`).
+
+Ограничения уровня базы (`Meta.constraints`): вместимость больше 0,
+цены не меньше 0, статус билета только `sold` или `cancelled`,
+одно место программы нельзя продать дважды — условное ограничение
+уникальности `(program, seat)` для `status = 'sold'`, поэтому
+отменённый билет место не занимает.
+
+### Связи
+
+```text
+Artist 1 ── N Program N ── 1 Venue
+              Program 1 ── N Ticket
+```
+
+| Поле | Связь | `on_delete` | `related_name` |
+|------|-------|-------------|----------------|
+| `Program.artist` | многие к одному → `Artist` | `PROTECT` | `artist.programs` |
+| `Program.venue` | многие к одному → `Venue` | `PROTECT` | `venue.programs` |
+| `Ticket.program` | многие к одному → `Program` | `PROTECT` | `program.tickets` |
+
+`PROTECT` запрещает удалить исполнителя, площадку или программу,
+на которые есть ссылки, — история концертов и продаж сохраняется.
+
+### Миграции
+
+```text
+python manage.py makemigrations artists venues programs tickets
+python manage.py sqlmigrate tickets 0001
+python manage.py migrate
+python manage.py showmigrations
+```
+
+Файлы `*/migrations/0001_initial.py` хранятся в Git. Выбрана
+стратегия «таблицы, управляемые Django, и перенос данных»: исходная
+база ПР7 не меняется, Django создаёт свои таблицы в `db.sqlite3`.
+
+### Перенос данных из базы ПР7
+
+| Файл | Назначение |
+|------|------------|
+| `db/inspect_source_db.py` | только чтение: таблицы, столбцы, число записей, проверка битых ссылок |
+| `db/import_sqlite_to_orm.py` | перенос `artists → venues → programs → tickets` через `update_or_create()` в одной транзакции `transaction.atomic()` с сохранением id |
+| `data/fixtures/concerts.json` | те же данные в формате fixture (`dumpdata`) |
+
+Исходная база открывается в режиме только чтения (`mode=ro`).
+Строки дат преобразуются в `date`, цены `REAL` — в `Decimal`,
+`NULL` — в пустую строку. Повторный запуск обновляет записи, а не
+создаёт дубликаты.
+
+### ORM-запросы проекта
+
+| Вид | Где | Выражение |
+|-----|-----|-----------|
+| получение набора | `/venues/` | `Venue.objects.order_by("-capacity", "name")` |
+| получение объекта | все `*_detail` | `get_object_or_404(Model, pk=...)` |
+| фильтр по одному условию | `/artists/?genre=` | `.filter(genre=genre)` |
+| фильтр по нескольким условиям | `/tickets/` | цепочка `.filter(program_id=...)`, `.filter(status=...)` |
+| фильтр по связанной модели | `/tickets/?venue=` | `.filter(program__venue_id=...)` |
+| исключение | `/venues/available/` | `.filter(capacity__gte=...).exclude(pk__in=busy_venue_ids)` |
+| поиск по строке | `/artists/?q=` | `.filter(name__lower__contains=q)` |
+| поиск по нескольким полям | `/programs/?q=` | `Q(title__...) \| Q(artist__name__...) \| Q(venue__name__...)` |
+| сортировка по выбору | `/programs/`, `/tickets/` | словарь `SORT_FIELDS` → `.order_by(...)`, в т. ч. `program__event_date` |
+| связанные объекты | афиша, билет | `select_related("artist", "venue")`, `select_related("program__artist", "program__venue")` |
+| обратная связь | `/artists/<id>/`, `/venues/<id>/` | `artist.programs...`, `venue.programs...`, `program.tickets...` |
+| только нужные поля | подбор площадки, жанры | `values_list("venue_id", flat=True)`, `values_list("genre", flat=True).distinct()` |
+| итоговые показатели | статистика | `.aggregate(Count, Sum, Avg)`, `.aggregate(Count, Min, Max)` |
+| показатели по группам | статистика, исполнители | `.annotate(Count("tickets", filter=Q(...)), Sum(...))`, `F("venue__name")`, `Coalesce(...)` |
+| группировка | статистика | `.values("genre").annotate(Count("pk"), Avg("base_price"))` |
+| условие на агрегат | статистика `?min_sold=` | `.filter(tickets_sold__gte=min_sold)` (HAVING) |
+| постраничный вывод | `/tickets/?page=` | `Paginator(tickets_list, 5).get_page(...)`, `{% querystring page=... %}` |
+
+Поиск по-русски без учёта регистра. Встроенные `LOWER` и `LIKE` в
+SQLite меняют регистр только у латиницы, поэтому `icontains` не
+находит «Октябрьский» по запросу «октябрь». В `homepage/apps.py`
+при каждом соединении функция `LOWER` заменяется Python-версией
+(`str.lower()`), а для строковых полей зарегистрировано
+преобразование `Lower`: запрос `name__lower__contains=q.lower()`
+выполняется как `LOWER(name) LIKE '%q%'`.
+
+Значения из GET-параметров проверяются: id — `isdigit()`, статус —
+по `Ticket.Status.values`, сортировка — только из словаря
+`SORT_FIELDS`, номер страницы — `Paginator.get_page()` (на `abc`
+вернёт первую страницу, на слишком большой номер — последнюю).
+
+### Администрирование
+
+Модели зарегистрированы в `admin.py` приложений: записи можно
+просматривать и изменять на `/admin/` (нужен суперпользователь:
+`python manage.py createsuperuser`).
+
+## База данных SQLite (ПР7, предыдущая реализация)
+
+Файлы SQL-слоя сохранены как предыдущая реализация и источник
+данных для переноса; представления их больше не используют.
 
 Путь данных в веб-приложении:
 
@@ -416,9 +559,9 @@ sqlite> SELECT COUNT(*) FROM tickets;
 sqlite3 data/concerts.sqlite ".read sql/queries.sql"
 ```
 
-### Получение данных в Django
+### Получение данных в Django (до ПР9)
 
-Тексты запросов — константы в начале `views.py` каждого приложения
+Тексты запросов были константами в начале `views.py` каждого приложения
 (`VENUE_LIST_SQL`, `AVAILABLE_VENUES_SQL` и т. д.), вместо значений
 стоит параметр `?`. View вызывает `fetch_all()` или `fetch_one()`
 из `db/database.py` и передаёт строки в шаблон через `context`:
@@ -458,7 +601,9 @@ PBA_Project_Soldatov/
 ├── db/                    # работа с SQLite из Python (ПР7)
 │   ├── __init__.py
 │   ├── database.py        # подключение и выполнение запросов
-│   └── import_json.py     # перенос данных из JSON
+│   ├── import_json.py     # перенос данных из JSON
+│   ├── inspect_source_db.py   # инспекция базы ПР7 (ПР9)
+│   └── import_sqlite_to_orm.py  # перенос базы ПР7 в ORM (ПР9)
 │
 ├── concerts/              # конфигурация Django-проекта
 │   ├── __init__.py
@@ -509,7 +654,8 @@ PBA_Project_Soldatov/
 │   ├── admin.py
 │   ├── apps.py
 │   ├── migrations/
-│   ├── models.py
+│   │   └── 0001_initial.py  # миграция модели (ПР9)
+│   ├── models.py          # модель Ticket (ПР9)
 │   ├── tests.py
 │   ├── urls.py
 │   └── views.py
@@ -521,7 +667,9 @@ PBA_Project_Soldatov/
 │   ├── programs.py
 │   └── tickets.py
 │
-├── data/                  # JSON-файлы и база concerts.sqlite
+├── data/                  # JSON-файлы, база ПР7 concerts.sqlite
+│   └── fixtures/concerts.json  # данные в формате fixture (ПР9)
+├── db.sqlite3             # база Django (не в Git, создаётся migrate)
 └── tests/                 # автоматизированные тесты pytest
     ├── conftest.py
     ├── test_database.py
@@ -529,7 +677,8 @@ PBA_Project_Soldatov/
     ├── test_venues.py
     ├── test_programs.py
     ├── test_tickets.py
-    └── test_web.py
+    ├── test_web.py
+    └── test_orm.py        # модели, связи, ORM-запросы (ПР9)
 ```
 
 Все пять приложений имеют одинаковый набор Python-файлов (показан
@@ -552,6 +701,8 @@ PBA_Project_Soldatov/
 Приложение главной страницы — точки входа в проект:
 
 - `views.py` — view-функции `index()` и `page_not_found()`;
+- `apps.py` — Unicode-версия функции `LOWER` для SQLite (поиск
+  по-русски без учёта регистра);
 - `urls.py` — маршрут главной страницы (`homepage:index`);
 - `templates/homepage/` — главная страница и страница 404;
 - `static/homepage/` — собственные CSS, JavaScript и логотип.
@@ -561,13 +712,15 @@ PBA_Project_Soldatov/
 
 Приложения разделов. В каждом:
 
-- `views.py` — SQL-запросы раздела и view-функции: выполняют
-  запросы, готовят контекст и вызывают `render()`;
+- `models.py` — модель раздела (`Artist`, `Venue`, `Program`,
+  `Ticket`); `migrations/` — миграции; `admin.py` — регистрация в
+  админ-панели;
+- `views.py` — view-функции: получают данные через ORM, готовят
+  контекст и вызывают `render()`;
 - `urls.py` — пространство имён `app_name` и маршруты `list`, `detail`
   (в `venues` также `available`, в `tickets` — `statistics`);
 - `templates/<приложение>/` — шаблоны списка, страницы объекта и
   включаемый фрагмент `includes/`;
-- `models.py` — Django-модели (появятся в следующих работах).
 
 Отдельное приложение для пользователей не создаётся: в проекте нет
 такой сущности, а для учётных записей Django предоставляет
@@ -576,8 +729,9 @@ PBA_Project_Soldatov/
 ### `models/`
 
 Классы предметной области и функции работы с коллекциями (ПР3):
-`Artist`, `Venue`, `Program`, `Ticket`. Не путать с файлами
-`models.py` Django-приложений.
+`Artist`, `Venue`, `Program`, `Ticket`. Используются консольной
+версией. Не путать с моделями Django в файлах `models.py`
+приложений.
 
 ### `storage.py`, `utils.py`, `main.py`
 
@@ -586,7 +740,8 @@ PBA_Project_Soldatov/
 
 ### `db/`, `sql/`
 
-Слой базы данных (ПР7), описан в разделе «База данных SQLite».
+Слой базы данных ПР7 (описан в разделе «База данных SQLite») и
+скрипты переноса данных в ORM (раздел «Django ORM»).
 
 ## Установка зависимостей
 
@@ -594,22 +749,29 @@ PBA_Project_Soldatov/
 pip install -r requirements.txt
 ```
 
-Состав `requirements.txt`: `Django==5.2.*`, `pytest`, `flake8`.
+Состав `requirements.txt`: `Django==5.2.*`, `pytest`, `pytest-django`,
+`flake8`.
 
 ## Запуск приложения
 
 Веб-версия (Django):
 
 ```text
-python -m db.import_json
 python manage.py migrate
+python db/import_sqlite_to_orm.py
 python manage.py check
 python manage.py runserver
 ```
 
-Первая команда создаёт (или пересоздаёт) данные в
-`data/concerts.sqlite` из JSON-файлов; файл базы уже есть в
-репозитории, поэтому для просмотра сайта её можно пропустить.
+`migrate` создаёт таблицы в `db.sqlite3`, скрипт переносит в них
+данные из `data/concerts.sqlite` (база ПР7 уже есть в репозитории).
+Вместо скрипта данные можно загрузить из fixture:
+
+```text
+python manage.py loaddata data/fixtures/concerts.json
+```
+
+Пересоздать саму базу ПР7 из JSON-файлов: `python -m db.import_json`.
 
 После запуска открыть в браузере адрес `http://127.0.0.1:8000/`.
 
@@ -625,16 +787,27 @@ python main.py
 pytest -v
 ```
 
+Django в тестах настраивает плагин `pytest-django`
+(`DJANGO_SETTINGS_MODULE` в `pytest.ini`). Тесты с фикстурой `db`
+работают с отдельной тестовой базой, которую Django создаёт
+миграциями и очищает после каждого теста; набор данных создаётся
+через ORM фикстурой `sample_data` в `conftest.py`.
+
 Тесты `tests/test_web.py` обращаются к страницам через тестовый
-HTTP-клиент Django и используют временную базу SQLite с
-собственным набором данных (фикстура `test_db` в `conftest.py`
-подменяет `db.database.DB_PATH`).
+HTTP-клиент Django.
 Они проверяют, какие шаблоны использованы (`response.templates`),
 наследование от `base.html`, подключение фрагментов `include`,
 содержимое контекста, именованные URL, фильтры, обработку пустого
 списка, подключение статических файлов и коды ответа 404, а также
 страницы ПР7: фильтр по жанру, подбор площадки, статистику, проверку
 ввода и передачу значений параметрами.
+
+`tests/test_orm.py` (ПР9) проверяет модели и связи (прямые и
+обратные, `PROTECT`, ограничения базы, `cancel()`), CRUD-операции,
+соответствие миграций моделям (`makemigrations --check`), поиск по
+кириллице без учёта регистра, поиск по нескольким полям, фильтры,
+сортировку, пагинацию и сохранение параметров между страницами,
+статистику, а также перенос данных из базы ПР7.
 
 `tests/test_database.py` проверяет слой БД: создание таблиц,
 внешние ключи и `PRAGMA foreign_keys`, ограничения `CHECK`, доступ к
@@ -686,9 +859,22 @@ flake8 . --extend-exclude=venv
   фильтр исполнителей по жанру, программы исполнителя;
 - пункт «Статистика» в навигации.
 
+Реализовано (ПР9):
+
+- модели Django `Artist`, `Venue`, `Program`, `Ticket` со связями
+  `ForeignKey` (`on_delete=PROTECT`, `related_name`) и ограничениями;
+- миграции `0001_initial` четырёх приложений;
+- инспекция базы ПР7 и перенос данных в ORM с сохранением id;
+- все представления получают данные через ORM: `get_object_or_404`,
+  `filter`/`exclude`, `Q`, `F`, `select_related`, `values`,
+  `aggregate`/`annotate`;
+- поиск исполнителей и программ (кириллица без учёта регистра),
+  выбор сортировки афиши и списка билетов;
+- фильтры, сортировка и постраничный вывод списка билетов;
+- модели зарегистрированы в админ-панели.
+
 Планируется:
 
-- перенос сущностей `Artist`, `Venue`, `Program`, `Ticket` в Django ORM;
 - формы создания программ и продажи билетов;
 - использование отложенной логики ПР3 в веб-интерфейсе.
 
@@ -707,4 +893,6 @@ flake8 . --extend-exclude=venv
 - в ПР7 изменился источник данных веб-части: JSON → SQLite.
   JSON-файлы, классы и консольная версия ПР3 сохранены; правила
   ПР3 (`is_upcoming`, `is_active`, доступность площадки) выражены
-  в SQL-запросах.
+  в SQL-запросах;
+- в ПР9 веб-часть перешла с SQL-запросов на Django ORM; правила
+  ПР3 снова стали методами классов — теперь моделей Django.

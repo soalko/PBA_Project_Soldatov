@@ -7,21 +7,35 @@
 
     <form method="get" class="row g-2 align-items-end mb-3">
         <div class="col-auto">
+            <label for="q" class="form-label">Название</label>
+            <input
+                type="search"
+                id="q"
+                name="q"
+                value="{{ query }}"
+                placeholder="например, ветер"
+                class="form-control"
+            >
+        </div>
+        <div class="col-auto">
             <label for="genre" class="form-label">Жанр</label>
             <select id="genre" name="genre" class="form-select">
                 <option value="">все жанры</option>
-                {% for item in genres %}
+                {% for genre in genres %}
                     <option
-                        value="{{ item.genre }}"
-                        {% if item.genre == selected_genre %}selected{% endif %}
+                        value="{{ genre }}"
+                        {% if genre == selected_genre %}selected{% endif %}
                     >
-                        {{ item.genre|capfirst }}
+                        {{ genre|capfirst }}
                     </option>
                 {% endfor %}
             </select>
         </div>
         <div class="col-auto">
             <button type="submit" class="btn btn-primary">Показать</button>
+            <a href="{% url 'artists:list' %}" class="btn btn-outline-secondary">
+                Сбросить
+            </a>
         </div>
     </form>
 

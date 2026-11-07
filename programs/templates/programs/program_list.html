@@ -5,6 +5,50 @@
 {% block content %}
     <h1>Концертные программы</h1>
 
+    <form method="get" class="row g-2 align-items-end mb-3">
+        <div class="col-md-4">
+            <label for="q" class="form-label">Поиск</label>
+            <input
+                type="search"
+                id="q"
+                name="q"
+                value="{{ query }}"
+                placeholder="программа, исполнитель или площадка"
+                class="form-control"
+            >
+        </div>
+        <div class="col-md-3">
+            <label for="genre" class="form-label">Жанр</label>
+            <select id="genre" name="genre" class="form-select">
+                <option value="">все жанры</option>
+                {% for genre in genres %}
+                    <option
+                        value="{{ genre }}"
+                        {% if genre == selected_genre %}selected{% endif %}
+                    >
+                        {{ genre|capfirst }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label for="sort" class="form-label">Сортировать по</label>
+            <select id="sort" name="sort" class="form-select">
+                <option value="date" {% if sort == "date" %}selected{% endif %}>дате</option>
+                <option value="title" {% if sort == "title" %}selected{% endif %}>названию</option>
+                <option value="artist" {% if sort == "artist" %}selected{% endif %}>исполнителю</option>
+                <option value="price" {% if sort == "price" %}selected{% endif %}>цене (сначала дешёвые)</option>
+                <option value="-price" {% if sort == "-price" %}selected{% endif %}>цене (сначала дорогие)</option>
+            </select>
+        </div>
+        <div class="col-md-2">
+            <button type="submit" class="btn btn-primary">Найти</button>
+            <a href="{% url 'programs:list' %}" class="btn btn-outline-secondary">
+                Сбросить
+            </a>
+        </div>
+    </form>
+
     <p class="text-muted">Всего программ: {{ programs|length }}</p>
 
     <ul class="list-group">
@@ -13,17 +57,18 @@
                 <div>
                     <a href="{% url 'programs:detail' program.id %}">
                         {{ program.title|default:"Без названия" }}
-                        – {{ program.event_day }}
+                        – {{ program.event_date|date:"d.m.Y" }}
                     </a>
                     <div class="text-muted small">
-                        {{ program.artist_name }} · {{ program.venue_name }}
+                        {{ program.artist.name }} · {{ program.venue.name }}
+                        · {{ program.base_price|floatformat:0 }} руб.
                     </div>
                 </div>
                 {% include "programs/includes/program_status.html" %}
             </li>
         {% empty %}
             <li class="list-group-item empty-message">
-                Список программ пуст.
+                Программы не найдены.
             </li>
         {% endfor %}
     </ul>

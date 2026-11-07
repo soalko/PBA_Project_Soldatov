@@ -1,77 +1,68 @@
-import os
-import sqlite3
-from datetime import date, timedelta
+"""Общие фикстуры тестов.
 
-import django
+Django настраивает плагин pytest-django (DJANGO_SETTINGS_MODULE
+в pytest.ini). Тесты с фикстурой db работают с отдельной тестовой
+базой: она создаётся миграциями перед запуском и очищается после
+каждого теста, поэтому db.sqlite3 и data/concerts.sqlite не меняются.
+"""
+from datetime import timedelta
+from decimal import Decimal
+from types import SimpleNamespace
+
 import pytest
 from django.test import Client
-from django.test.utils import setup_test_environment
+from django.utils import timezone
 
-import db.database
+from artists.models import Artist
+from programs.models import Program
+from tickets.models import Ticket
+from venues.models import Venue
 
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "concerts.settings")
-django.setup()
-# debug=False включает собственную страницу 404 вместо отладочной.
-setup_test_environment(debug=False)
-
-FUTURE = (date.today() + timedelta(days=30)).isoformat()
-TODAY = date.today().isoformat()
+TODAY = timezone.localdate()
+FUTURE = TODAY + timedelta(days=30)
 
 
 @pytest.fixture
-def test_db(tmp_path, monkeypatch):
-    """Временная база SQLite с небольшим набором данных.
+def sample_data(db):
+    """Небольшой набор данных, созданный через ORM.
 
-    db.database.DB_PATH подменяется, поэтому view-функции и
-    get_connection() работают с этой базой, а не с data/concerts.sqlite.
+    Исполнитель выступает на двух площадках: «Октябрьский» свободен
+    сегодня, на «Арене» сегодня концерт. На первую программу два
+    билета, один из них отменён.
     """
-    path = tmp_path / "test.sqlite"
-    monkeypatch.setattr(db.database, "DB_PATH", path)
-
-    conn = db.database.get_connection()
-    db.database.create_schema(conn)
-    conn.execute(
-        "INSERT INTO artists VALUES (?, ?, ?, ?)",
-        (1, "Оркестр «Камертон»", "Россия", "классика"),
+    artist = Artist.objects.create(
+        pk=1, name="Оркестр «Камертон»", country="Россия", genre="классика",
     )
-    conn.executemany(
-        "INSERT INTO venues VALUES (?, ?, ?, ?)",
-        [
-            (1, "Октябрьский", "СПб", 1500),
-            (2, "Крокус", "Москва", 6000),
-        ],
+    hall = Venue.objects.create(
+        pk=1, name="Октябрьский", address="СПб", capacity=1500,
     )
-    conn.executemany(
-        "INSERT INTO programs VALUES (?, ?, ?, ?, ?, ?, ?)",
-        [
-            (1, "Симфония осени", 1, 1, "классика", FUTURE, 2500.0),
-            (2, "Вечер классики", 1, 2, "классика", TODAY, 1800.0),
-        ],
+    arena = Venue.objects.create(
+        pk=2, name="Арена", address="Москва", capacity=6000,
     )
-    conn.executemany(
-        "INSERT INTO tickets VALUES (?, ?, ?, ?, ?, ?)",
-        [
-            (1, 1, "A12", "партер", 2125.0, "sold"),
-            (2, 1, "B7", "балкон", 2500.0, "cancelled"),
-        ],
+    autumn = Program.objects.create(
+        pk=1, title="Симфония осени", artist=artist, venue=hall,
+        genre="классика", event_date=FUTURE, base_price=Decimal("2500"),
     )
-    conn.commit()
-    conn.close()
-    return path
+    evening = Program.objects.create(
+        pk=2, title="Вечер классики", artist=artist, venue=arena,
+        genre="классика", event_date=TODAY, base_price=Decimal("1800"),
+    )
+    sold = Ticket.objects.create(
+        pk=1, program=autumn, seat="A12", category="партер",
+        price=Decimal("2125"),
+    )
+    cancelled = Ticket.objects.create(
+        pk=2, program=autumn, seat="B7", category="балкон",
+        price=Decimal("2500"), status=Ticket.Status.CANCELLED,
+    )
+    return SimpleNamespace(
+        artist=artist, hall=hall, arena=arena,
+        autumn=autumn, evening=evening,
+        sold=sold, cancelled=cancelled,
+    )
 
 
 @pytest.fixture
-def client(test_db):
-    """Тестовый HTTP-клиент, страницы которого читают временную базу."""
+def client(sample_data):
+    """Тестовый HTTP-клиент; страницы читают данные sample_data."""
     return Client()
-
-
-@pytest.fixture
-def run_sql(test_db):
-    """Выполнить изменяющую SQL-команду во временной базе."""
-    def run(sql, params=()):
-        conn = sqlite3.connect(test_db)
-        conn.execute(sql, params)
-        conn.commit()
-        conn.close()
-    return run

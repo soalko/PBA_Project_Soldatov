@@ -1,79 +1,43 @@
 from datetime import date
 
-from django.shortcuts import render
+from django.shortcuts import get_object_or_404, render
+from django.utils import timezone
 
-from db.database import fetch_all, fetch_one
+from programs.models import Program
 
-# Список площадок (запрос 2 в sql/queries.sql).
-VENUE_LIST_SQL = """
-    SELECT id, name, address, capacity
-    FROM venues
-    ORDER BY capacity DESC
-"""
-
-VENUE_DETAIL_SQL = """
-    SELECT id, name, address, capacity
-    FROM venues
-    WHERE id = ?
-"""
-
-# Сколько программ проходит на площадке в дату (запрос 6).
-VENUE_PROGRAMS_ON_DATE_SQL = """
-    SELECT COUNT(*) AS programs_count
-    FROM programs
-    WHERE venue_id = ?
-      AND event_date = ?
-"""
-
-# Свободные площадки на дату с вместимостью не менее N (запрос 7).
-AVAILABLE_VENUES_SQL = """
-    SELECT id, name, address, capacity
-    FROM venues
-    WHERE capacity >= ?
-      AND id NOT IN (
-          SELECT venue_id
-          FROM programs
-          WHERE event_date = ?
-      )
-    ORDER BY capacity
-"""
+from .models import Venue
 
 
 def venues(request):
-    """Страница списка площадок."""
-    context = {
-        "venues": fetch_all(VENUE_LIST_SQL),
-    }
+    """Список площадок: сначала самые вместительные."""
+    # Второе поле сортировки упорядочивает площадки
+    # с одинаковой вместимостью.
+    venues_list = Venue.objects.order_by("-capacity", "name")
 
+    context = {
+        "venues": venues_list,
+    }
     return render(request, "venues/venue_list.html", context)
 
 
 def venue_detail(request, venue_id):
-    """Страница площадки; для неизвестного id - ответ с кодом 404."""
-    venue = fetch_one(VENUE_DETAIL_SQL, [venue_id])
-    today = date.today()
+    """Страница площадки с её программами; неизвестный id — 404."""
+    venue = get_object_or_404(Venue, pk=venue_id)
+    today = timezone.localdate()
 
-    # Площадка свободна, если сегодня на ней нет ни одной программы.
-    is_available = None
-    if venue is not None:
-        row = fetch_one(
-            VENUE_PROGRAMS_ON_DATE_SQL,
-            [venue_id, today.isoformat()],
-        )
-        is_available = row["programs_count"] == 0
+    # Обратная связь venue.programs: программы этой площадки
+    # вместе с исполнителями (select_related — JOIN в одном запросе).
+    programs_list = venue.programs.select_related("artist").order_by(
+        "event_date",
+    )
 
     context = {
         "venue": venue,
-        "is_available": is_available,
+        "programs": programs_list,
+        "is_available": venue.is_free_on(today),
         "today": today,
     }
-
-    return render(
-        request,
-        "venues/venue_detail.html",
-        context,
-        status=404 if venue is None else 200,
-    )
+    return render(request, "venues/venue_detail.html", context)
 
 
 def available_venues(request):
@@ -108,9 +72,19 @@ def available_venues(request):
     venues_list = []
     searched = event_date is not None and not errors
     if searched:
-        venues_list = fetch_all(
-            AVAILABLE_VENUES_SQL,
-            [capacity, event_date.isoformat()],
+        # id площадок, на которых в эту дату уже есть программа.
+        # values_list(..., flat=True) возвращает только числа,
+        # а не объекты программ.
+        busy_venue_ids = Program.objects.filter(
+            event_date=event_date,
+        ).values_list("venue_id", flat=True)
+
+        # Фильтр по вместимости и исключение занятых площадок.
+        # Подзапрос busy_venue_ids попадает в SQL как NOT IN (...).
+        venues_list = (
+            Venue.objects.filter(capacity__gte=capacity)
+            .exclude(pk__in=busy_venue_ids)
+            .order_by("capacity", "name")
         )
 
     context = {
@@ -122,5 +96,4 @@ def available_venues(request):
         "errors": errors,
         "searched": searched,
     }
-
     return render(request, "venues/available.html", context)
